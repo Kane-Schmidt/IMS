@@ -62,6 +62,16 @@ export default function Home() {
       </div>
 
       <h2>Outstanding Tasks</h2>
+      <div className="kpi-strip">
+        <div className="kpi-card">
+          <span className="kpi-value">{pendingApprovalOrders.length}</span>
+          <span className="kpi-label">Purchase Orders Pending Approval</span>
+        </div>
+        <div className="kpi-card">
+          <span className="kpi-value">{approvedOrders.length}</span>
+          <span className="kpi-label">Inbound Shipments Ready to Receive</span>
+        </div>
+      </div>
       {tasks.length === 0 ? (
         <p className="empty-state">You're all caught up — no outstanding tasks.</p>
       ) : (
