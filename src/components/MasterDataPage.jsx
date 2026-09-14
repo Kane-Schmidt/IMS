@@ -113,9 +113,10 @@ function displayValue(field, value) {
 }
 
 export default function MasterDataPage({ title, storageKey, fields }) {
-  const { items, addItem, removeItem } = useCollection(storageKey)
+  const { items, addItem, removeItem, updateItem } = useCollection(storageKey)
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState(() => emptyRecord(fields))
+  const [editingId, setEditingId] = useState(null)
 
   function updateField(key, value) {
     setDraft((prev) => ({ ...prev, [key]: value }))
@@ -123,14 +124,36 @@ export default function MasterDataPage({ title, storageKey, fields }) {
 
   function handleSubmit(event) {
     event.preventDefault()
-    addItem(draft)
+    if (editingId) {
+      updateItem(editingId, draft)
+    } else {
+      addItem(draft)
+    }
     setDraft(emptyRecord(fields))
+    setEditingId(null)
     setShowForm(false)
   }
 
   function handleCancel() {
     setDraft(emptyRecord(fields))
+    setEditingId(null)
     setShowForm(false)
+  }
+
+  function startEdit(item) {
+    const record = {}
+    fields.forEach((field) => {
+      record[field.key] = item[field.key]
+    })
+    setDraft(record)
+    setEditingId(item.id)
+    setShowForm(true)
+  }
+
+  function startAdd() {
+    setDraft(emptyRecord(fields))
+    setEditingId(null)
+    setShowForm(true)
   }
 
   return (
@@ -138,7 +161,7 @@ export default function MasterDataPage({ title, storageKey, fields }) {
       <div className="page-header">
         <h1>{title}</h1>
         {!showForm && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
+          <button className="btn-primary" onClick={startAdd}>
             + Add New
           </button>
         )}
@@ -157,7 +180,7 @@ export default function MasterDataPage({ title, storageKey, fields }) {
           ))}
           <div className="form-actions">
             <button type="submit" className="btn-primary">
-              Save
+              {editingId ? 'Save Changes' : 'Save'}
             </button>
             <button type="button" className="btn-secondary" onClick={handleCancel}>
               Cancel
@@ -184,7 +207,10 @@ export default function MasterDataPage({ title, storageKey, fields }) {
                 {fields.map((field) => (
                   <td key={field.key}>{displayValue(field, item[field.key])}</td>
                 ))}
-                <td>
+                <td className="row-actions">
+                  <button className="btn-secondary" onClick={() => startEdit(item)}>
+                    Edit
+                  </button>
                   <button className="btn-remove" onClick={() => removeItem(item.id)}>
                     Delete
                   </button>
