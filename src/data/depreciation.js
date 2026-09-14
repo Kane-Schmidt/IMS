@@ -10,18 +10,18 @@ export function methodLabel(method) {
   return DEPRECIATION_METHODS.find((option) => option.value === method)?.label ?? 'Not Depreciated'
 }
 
-function yearsInService(placedInServiceDate, usefulLifeYears) {
+function yearsElapsed(placedInServiceDate, asOfDate, usefulLifeYears) {
   const placed = new Date(placedInServiceDate).getTime()
   if (Number.isNaN(placed)) return 0
-  const elapsed = (Date.now() - placed) / MS_PER_YEAR
+  const elapsed = (asOfDate.getTime() - placed) / MS_PER_YEAR
   return Math.max(0, Math.min(elapsed, usefulLifeYears))
 }
 
 // Depreciates a single physical asset from its own cost and in-service date,
-// using the product-level policy (method/life/salvage/rate). This is what
-// lets book value roll up correctly even though units of the same product
-// are received — and start depreciating — on different dates.
-export function depreciateAsset({ cost, placedInServiceDate, model }) {
+// using the product-level policy (method/life/salvage/rate), as of a given
+// date (defaults to now). Passing a future asOfDate projects the asset's
+// book value forward, which is what the trend chart/schedule use.
+export function depreciateAsset({ cost, placedInServiceDate, model, asOfDate = new Date() }) {
   const basisCost = Number(cost) || 0
 
   if (!model || model.method === 'none') {
@@ -35,7 +35,7 @@ export function depreciateAsset({ cost, placedInServiceDate, model }) {
     return { accumulatedDepreciation: 0, netBookValue: basisCost }
   }
 
-  const years = yearsInService(placedInServiceDate, life)
+  const years = yearsElapsed(placedInServiceDate, asOfDate, life)
 
   if (model.method === 'straight-line') {
     const depreciableBase = Math.max(basisCost - salvage, 0)
@@ -55,4 +55,40 @@ export function depreciateAsset({ cost, placedInServiceDate, model }) {
   }
 
   return { accumulatedDepreciation: 0, netBookValue: basisCost }
+}
+
+// Projects company-wide totals (net book value + accumulated depreciation)
+// for each of the next `years` calendar years, summed across every owned
+// unit of every product. Year 0 is today. Used for the Finance trend chart
+// and schedule table.
+export function projectCompanyDepreciation({ products, inventoryItems, years }) {
+  const today = new Date()
+  const points = []
+
+  for (let offset = 0; offset <= years; offset += 1) {
+    const asOfDate = new Date(today)
+    asOfDate.setFullYear(today.getFullYear() + offset)
+
+    let netBookValue = 0
+    let accumulatedDepreciation = 0
+    let grossCost = 0
+
+    products.forEach((product) => {
+      const model = product.depreciationModel
+      const cost = Number(product.purchasePrice) || 0
+
+      inventoryItems
+        .filter((item) => item.productId === product.id)
+        .forEach((item) => {
+          grossCost += cost
+          const result = depreciateAsset({ cost, placedInServiceDate: item.receivedAt, model, asOfDate })
+          netBookValue += result.netBookValue
+          accumulatedDepreciation += result.accumulatedDepreciation
+        })
+    })
+
+    points.push({ year: asOfDate.getFullYear(), grossCost, accumulatedDepreciation, netBookValue })
+  }
+
+  return points
 }

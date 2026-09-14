@@ -301,6 +301,92 @@ body {
   overflow-x: auto;
 }
 
+/* Trend chart */
+
+.chart-card {
+  background-color: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.chart-card h2 {
+  margin-top: 0;
+}
+
+.trend-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.trend-chart-gridline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.trend-chart-axis-label {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.trend-chart-area {
+  fill: var(--color-steel-blue);
+  opacity: 0.1;
+  stroke: none;
+}
+
+.trend-chart-line {
+  fill: none;
+  stroke: var(--color-steel-blue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-chart-end-dot {
+  fill: var(--color-steel-blue);
+  stroke: var(--color-panel);
+  stroke-width: 2;
+}
+
+.trend-chart-end-label {
+  fill: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-chart-crosshair {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.trend-chart-hover-dot {
+  fill: var(--color-signal-yellow);
+  stroke: var(--color-panel);
+  stroke-width: 2;
+}
+
+.trend-chart-tooltip-bg {
+  fill: var(--color-carbon-black);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.trend-chart-tooltip-value {
+  fill: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trend-chart-tooltip-label {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

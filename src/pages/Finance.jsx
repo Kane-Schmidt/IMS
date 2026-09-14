@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useAppData } from '../data/AppDataContext.jsx'
 import Modal from '../components/Modal.jsx'
-import { DEPRECIATION_METHODS, methodLabel, depreciateAsset } from '../data/depreciation.js'
+import TrendChart from '../components/TrendChart.jsx'
+import { DEPRECIATION_METHODS, methodLabel, depreciateAsset, projectCompanyDepreciation } from '../data/depreciation.js'
 
 const emptyModel = { method: 'none', usefulLifeYears: '', salvageValue: '', decliningRate: '' }
+const PROJECTION_YEARS = 10
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -56,6 +58,9 @@ export default function Finance() {
     { unitsOwned: 0, grossCost: 0, accumulatedDepreciation: 0, netBookValue: 0 },
   )
 
+  const projection = projectCompanyDepreciation({ products, inventoryItems, years: PROJECTION_YEARS })
+  const chartData = projection.map((point) => ({ year: point.year, value: point.netBookValue }))
+
   return (
     <div className="finance-page">
       <h1>Finance</h1>
@@ -86,46 +91,83 @@ export default function Finance() {
       {rows.length === 0 ? (
         <p className="empty-state">No products yet. Add products under Master Data or Admin first.</p>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Manufacturer</th>
-                <th>Model Number</th>
-                <th>Units Owned</th>
-                <th>Unit Cost</th>
-                <th>Depreciation Method</th>
-                <th>Useful Life</th>
-                <th>Salvage Value</th>
-                <th>Gross Cost</th>
-                <th>Accum. Depreciation</th>
-                <th>Net Book Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ product, model, unitsOwned, grossCost, accumulatedDepreciation, netBookValue }) => (
-                <tr key={product.id}>
-                  <td>{product.manufacturer}</td>
-                  <td>{product.modelNumber}</td>
-                  <td>{unitsOwned}</td>
-                  <td>{currency(product.purchasePrice)}</td>
-                  <td>{methodLabel(model.method)}</td>
-                  <td>{model.method !== 'none' && model.usefulLifeYears ? `${model.usefulLifeYears} yrs` : '—'}</td>
-                  <td>{model.method !== 'none' && model.salvageValue !== '' ? currency(model.salvageValue) : '—'}</td>
-                  <td>{currency(grossCost)}</td>
-                  <td>{currency(accumulatedDepreciation)}</td>
-                  <td>{currency(netBookValue)}</td>
-                  <td>
-                    <button className="btn-secondary" onClick={() => setEditingProduct(product)}>
-                      Edit Model
-                    </button>
-                  </td>
+        <>
+          <div className="chart-card">
+            <h2>Net Book Value Trend</h2>
+            <TrendChart data={chartData} label="Projected company-wide net book value over the next 10 years" />
+          </div>
+
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Manufacturer</th>
+                  <th>Model Number</th>
+                  <th>Units Owned</th>
+                  <th>Unit Cost</th>
+                  <th>Depreciation Method</th>
+                  <th>Useful Life</th>
+                  <th>Salvage Value (Resell)</th>
+                  <th>Gross Cost</th>
+                  <th>Accum. Depreciation</th>
+                  <th>Net Book Value</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map(({ product, model, unitsOwned, grossCost, accumulatedDepreciation, netBookValue }) => (
+                  <tr key={product.id}>
+                    <td>{product.manufacturer}</td>
+                    <td>{product.modelNumber}</td>
+                    <td>{unitsOwned}</td>
+                    <td>{currency(product.purchasePrice)}</td>
+                    <td>{methodLabel(model.method)}</td>
+                    <td>{model.method !== 'none' && model.usefulLifeYears ? `${model.usefulLifeYears} yrs` : '—'}</td>
+                    <td>{model.method !== 'none' && model.salvageValue !== '' ? currency(model.salvageValue) : '—'}</td>
+                    <td>{currency(grossCost)}</td>
+                    <td>{currency(accumulatedDepreciation)}</td>
+                    <td>{currency(netBookValue)}</td>
+                    <td>
+                      <button className="btn-secondary" onClick={() => setEditingProduct(product)}>
+                        Edit Model
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Company-Wide Depreciation Schedule</h2>
+          <p className="page-subtitle">
+            Projected from currently owned assets only — does not assume future purchases or disposals.
+          </p>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Gross Cost</th>
+                  <th>Accum. Depreciation</th>
+                  <th>Net Book Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projection.map((point, index) => (
+                  <tr key={point.year}>
+                    <td>
+                      {point.year}
+                      {index === 0 ? ' (today)' : ''}
+                    </td>
+                    <td>{currency(point.grossCost)}</td>
+                    <td>{currency(point.accumulatedDepreciation)}</td>
+                    <td>{currency(point.netBookValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {editingProduct && (
@@ -181,7 +223,7 @@ function DepreciationModelModal({ product, onSave, onClose }) {
               />
             </label>
             <label className="form-field">
-              <span>Salvage Value ($)</span>
+              <span>Salvage / Resell Value ($)</span>
               <input
                 type="number"
                 min="0"
