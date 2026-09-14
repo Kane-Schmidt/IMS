@@ -17,6 +17,9 @@ function emptyRecord(fields) {
 
 function StorageLocationsEditor({ value, onChange }) {
   const [newName, setNewName] = useState('')
+  const [selectedId, setSelectedId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [editingValue, setEditingValue] = useState('')
 
   function addRow() {
     if (!newName.trim()) return
@@ -26,6 +29,24 @@ function StorageLocationsEditor({ value, onChange }) {
 
   function removeRow(id) {
     onChange(value.filter((row) => row.id !== id))
+    if (editingId === id) setEditingId(null)
+    if (selectedId === id) setSelectedId(null)
+  }
+
+  function startEdit(row) {
+    setSelectedId(row.id)
+    setEditingId(row.id)
+    setEditingValue(row.name)
+  }
+
+  function saveEdit(id) {
+    if (!editingValue.trim()) return
+    onChange(value.map((row) => (row.id === id ? { ...row, name: editingValue.trim() } : row)))
+    setEditingId(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
   }
 
   return (
@@ -40,12 +61,43 @@ function StorageLocationsEditor({ value, onChange }) {
           </thead>
           <tbody>
             {value.map((row) => (
-              <tr key={row.id}>
-                <td>{row.name}</td>
+              <tr
+                key={row.id}
+                className={selectedId === row.id ? 'selected' : undefined}
+                onClick={() => setSelectedId(row.id)}
+              >
                 <td>
-                  <button type="button" className="btn-remove" onClick={() => removeRow(row.id)}>
-                    Remove
-                  </button>
+                  {editingId === row.id ? (
+                    <input
+                      type="text"
+                      value={editingValue}
+                      autoFocus
+                      onChange={(event) => setEditingValue(event.target.value)}
+                    />
+                  ) : (
+                    row.name
+                  )}
+                </td>
+                <td onClick={(event) => event.stopPropagation()}>
+                  {editingId === row.id ? (
+                    <>
+                      <button type="button" className="btn-primary" onClick={() => saveEdit(row.id)}>
+                        Save
+                      </button>
+                      <button type="button" className="btn-secondary" onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="btn-secondary" onClick={() => startEdit(row)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-remove" onClick={() => removeRow(row.id)}>
+                        Remove
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

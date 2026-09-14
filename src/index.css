@@ -254,6 +254,32 @@ body {
   font-size: 0.9rem;
 }
 
+.sub-table tbody tr {
+  cursor: pointer;
+}
+
+.sub-table tbody tr.selected {
+  background-color: rgba(27, 79, 204, 0.18);
+}
+
+.sub-table td .btn-secondary,
+.sub-table td .btn-primary,
+.sub-table td .btn-remove {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  margin-right: 0.4rem;
+}
+
+.sub-table td input[type='text'] {
+  background-color: var(--color-carbon-black);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  width: 100%;
+}
+
 .sub-table-add {
   display: flex;
   gap: 0.5rem;
