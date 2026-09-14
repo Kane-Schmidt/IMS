@@ -1,6 +1,5 @@
-import MasterDataPage from '../../components/MasterDataPage.jsx'
-import { productFields } from '../../data/fieldConfigs.js'
+import ProductAdmin from '../ProductAdmin.jsx'
 
 export default function ProductMasterData() {
-  return <MasterDataPage title="Product Master Data" storageKey="ims_products" fields={productFields} />
+  return <ProductAdmin />
 }

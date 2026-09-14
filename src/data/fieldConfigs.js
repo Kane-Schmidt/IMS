@@ -1,9 +1,3 @@
-export const productFields = [
-  { key: 'manufacturer', label: 'Manufacturer', type: 'text' },
-  { key: 'modelNumber', label: 'Model Number', type: 'text' },
-  { key: 'purchasePrice', label: 'Purchase Price', type: 'number', currency: true },
-]
-
 export const employeeFields = [
   { key: 'firstName', label: 'First Name', type: 'text' },
   { key: 'lastName', label: 'Last Name', type: 'text' },

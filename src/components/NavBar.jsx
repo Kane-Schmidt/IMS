@@ -8,6 +8,16 @@ const masterDataLinks = [
   { to: '/master-data/vehicles', label: 'Vehicle Master Data' },
 ]
 
+const primaryLinks = [
+  { to: '/place-order', label: 'Place an Order' },
+  { to: '/receive-order', label: 'Receive an Order' },
+  { to: '/relocate', label: 'Relocate' },
+  { to: '/bundles', label: 'Bundle Management' },
+  { to: '/inventory', label: 'Inventory' },
+  { to: '/reports', label: 'Reports' },
+  { to: '/admin', label: 'Admin' },
+]
+
 function navLinkClass({ isActive }) {
   return isActive ? 'active' : undefined
 }
@@ -21,7 +31,7 @@ export default function NavBar() {
       <ul className="navbar-links">
         <li>
           <NavLink to="/" end className={navLinkClass}>
-            Dashboard
+            Home
           </NavLink>
         </li>
         <li className="navbar-dropdown" onMouseEnter={() => setMenuOpen(true)} onMouseLeave={() => setMenuOpen(false)}>
@@ -40,21 +50,13 @@ export default function NavBar() {
             </ul>
           )}
         </li>
-        <li>
-          <NavLink to="/inventory" className={navLinkClass}>
-            Inventory
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/reports" className={navLinkClass}>
-            Reports
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/admin" className={navLinkClass}>
-            Admin
-          </NavLink>
-        </li>
+        {primaryLinks.map((link) => (
+          <li key={link.to}>
+            <NavLink to={link.to} className={navLinkClass}>
+              {link.label}
+            </NavLink>
+          </li>
+        ))}
       </ul>
     </nav>
   )

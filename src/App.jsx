@@ -1,6 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AppDataProvider } from './data/AppDataContext.jsx'
 import NavBar from './components/NavBar.jsx'
-import Dashboard from './pages/Dashboard.jsx'
+import Home from './pages/Home.jsx'
+import PlaceOrder from './pages/PlaceOrder.jsx'
+import ReceiveOrder from './pages/ReceiveOrder.jsx'
+import Relocate from './pages/Relocate.jsx'
+import BundleManagement from './pages/BundleManagement.jsx'
 import Inventory from './pages/Inventory.jsx'
 import Reports from './pages/Reports.jsx'
 import Admin from './pages/Admin.jsx'
@@ -11,21 +16,27 @@ import VehicleMasterData from './pages/masterdata/VehicleMasterData.jsx'
 
 function App() {
   return (
-    <BrowserRouter>
-      <NavBar />
-      <div className="page-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/master-data/products" element={<ProductMasterData />} />
-          <Route path="/master-data/employees" element={<EmployeeMasterData />} />
-          <Route path="/master-data/locations" element={<LocationMasterData />} />
-          <Route path="/master-data/vehicles" element={<VehicleMasterData />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
+    <AppDataProvider>
+      <BrowserRouter>
+        <NavBar />
+        <div className="page-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/place-order" element={<PlaceOrder />} />
+            <Route path="/receive-order" element={<ReceiveOrder />} />
+            <Route path="/relocate" element={<Relocate />} />
+            <Route path="/bundles" element={<BundleManagement />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/master-data/products" element={<ProductMasterData />} />
+            <Route path="/master-data/employees" element={<EmployeeMasterData />} />
+            <Route path="/master-data/locations" element={<LocationMasterData />} />
+            <Route path="/master-data/vehicles" element={<VehicleMasterData />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </AppDataProvider>
   )
 }
 
