@@ -326,12 +326,24 @@ body {
 /* Home / Inventory: KPIs and module tiles */
 
 .home-page h1,
-.inventory-page h1 {
+.inventory-page h1,
+.admin-page h1,
+.support-page h1 {
   color: var(--color-steel-blue);
 }
 
 .home-page a {
   color: var(--color-signal-yellow);
+}
+
+.page-subtitle {
+  color: var(--color-text-muted);
+  margin-top: -0.5rem;
+}
+
+.form-field-narrow {
+  max-width: 240px;
+  margin-bottom: 2rem;
 }
 
 .kpi-strip {

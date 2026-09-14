@@ -12,6 +12,7 @@ const primaryLinks = [
   { to: '/inventory', label: 'Inventory' },
   { to: '/reports', label: 'Reports' },
   { to: '/admin', label: 'Admin' },
+  { to: '/support', label: 'Support' },
 ]
 
 function navLinkClass({ isActive }) {

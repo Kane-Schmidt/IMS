@@ -28,6 +28,9 @@ function loadInitialState() {
     inventoryItems: [],
     orders: [],
     bundles: [],
+    users: [],
+    totalSeats: 25,
+    tickets: [],
   }
 }
 
@@ -128,6 +131,23 @@ function reducer(state, action) {
         ),
       }
 
+    case 'ADD_USER':
+      return { ...state, users: [...state.users, action.user] }
+
+    case 'TOGGLE_USER_ACTIVE':
+      return {
+        ...state,
+        users: state.users.map((user) =>
+          user.id === action.id ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' } : user,
+        ),
+      }
+
+    case 'SET_TOTAL_SEATS':
+      return { ...state, totalSeats: action.value }
+
+    case 'ADD_TICKET':
+      return { ...state, tickets: [...state.tickets, action.ticket] }
+
     default:
       return state
   }
@@ -179,6 +199,21 @@ export function AppDataProvider({ children }) {
       },
       breakBundle(id) {
         dispatch({ type: 'BREAK_BUNDLE', id })
+      },
+      addUser(user) {
+        dispatch({ type: 'ADD_USER', user: { id: crypto.randomUUID(), status: 'active', ...user } })
+      },
+      toggleUserActive(id) {
+        dispatch({ type: 'TOGGLE_USER_ACTIVE', id })
+      },
+      setTotalSeats(value) {
+        dispatch({ type: 'SET_TOTAL_SEATS', value })
+      },
+      addTicket(ticket) {
+        dispatch({
+          type: 'ADD_TICKET',
+          ticket: { id: crypto.randomUUID(), status: 'open', submittedAt: new Date().toISOString(), ...ticket },
+        })
       },
     }),
     [],

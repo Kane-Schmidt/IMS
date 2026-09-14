@@ -9,6 +9,7 @@ import BundleManagement from './pages/BundleManagement.jsx'
 import Inventory from './pages/Inventory.jsx'
 import Reports from './pages/Reports.jsx'
 import Admin from './pages/Admin.jsx'
+import Support from './pages/Support.jsx'
 import ProductMasterData from './pages/masterdata/ProductMasterData.jsx'
 import EmployeeMasterData from './pages/masterdata/EmployeeMasterData.jsx'
 import LocationMasterData from './pages/masterdata/LocationMasterData.jsx'
@@ -29,6 +30,7 @@ function App() {
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/support" element={<Support />} />
             <Route path="/master-data/products" element={<ProductMasterData />} />
             <Route path="/master-data/employees" element={<EmployeeMasterData />} />
             <Route path="/master-data/locations" element={<LocationMasterData />} />
