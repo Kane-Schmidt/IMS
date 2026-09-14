@@ -1,0 +1,199 @@
+import { useState } from 'react'
+import { useCollection } from '../data/useCollection.js'
+
+function emptyValueFor(field) {
+  if (field.type === 'checkbox') return false
+  if (field.type === 'storageLocations') return []
+  return ''
+}
+
+function emptyRecord(fields) {
+  const record = {}
+  fields.forEach((field) => {
+    record[field.key] = emptyValueFor(field)
+  })
+  return record
+}
+
+function StorageLocationsEditor({ value, onChange }) {
+  const [newName, setNewName] = useState('')
+
+  function addRow() {
+    if (!newName.trim()) return
+    onChange([...value, { id: crypto.randomUUID(), name: newName.trim() }])
+    setNewName('')
+  }
+
+  function removeRow(id) {
+    onChange(value.filter((row) => row.id !== id))
+  }
+
+  return (
+    <div className="storage-locations-editor">
+      {value.length > 0 && (
+        <table className="sub-table">
+          <thead>
+            <tr>
+              <th>Storage Location Name</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {value.map((row) => (
+              <tr key={row.id}>
+                <td>{row.name}</td>
+                <td>
+                  <button type="button" className="btn-remove" onClick={() => removeRow(row.id)}>
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="sub-table-add">
+        <input
+          type="text"
+          placeholder="e.g. Aisle 3, Bay 2"
+          value={newName}
+          onChange={(event) => setNewName(event.target.value)}
+        />
+        <button type="button" className="btn-secondary" onClick={addRow}>
+          Add Storage Location
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FieldInput({ field, value, onChange }) {
+  if (field.type === 'checkbox') {
+    return <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
+  }
+
+  if (field.type === 'select') {
+    return (
+      <select value={value} onChange={(event) => onChange(event.target.value)} required>
+        <option value="" disabled>
+          Select {field.label}
+        </option>
+        {field.options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
+  if (field.type === 'storageLocations') {
+    return <StorageLocationsEditor value={value} onChange={onChange} />
+  }
+
+  return (
+    <input
+      type={field.type === 'number' ? 'number' : 'text'}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      required
+    />
+  )
+}
+
+function displayValue(field, value) {
+  if (field.type === 'checkbox') return value ? 'Yes' : 'No'
+  if (field.type === 'storageLocations') {
+    return `${value.length} location${value.length === 1 ? '' : 's'}`
+  }
+  if (field.type === 'number' && field.currency) {
+    return value === '' ? '' : `$${Number(value).toLocaleString()}`
+  }
+  return value
+}
+
+export default function MasterDataPage({ title, storageKey, fields }) {
+  const { items, addItem, removeItem } = useCollection(storageKey)
+  const [showForm, setShowForm] = useState(false)
+  const [draft, setDraft] = useState(() => emptyRecord(fields))
+
+  function updateField(key, value) {
+    setDraft((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    addItem(draft)
+    setDraft(emptyRecord(fields))
+    setShowForm(false)
+  }
+
+  function handleCancel() {
+    setDraft(emptyRecord(fields))
+    setShowForm(false)
+  }
+
+  return (
+    <div className="master-data-page">
+      <div className="page-header">
+        <h1>{title}</h1>
+        {!showForm && (
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            + Add New
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <form className="record-form" onSubmit={handleSubmit}>
+          {fields.map((field) => (
+            <label
+              key={field.key}
+              className={`form-field${field.type === 'storageLocations' ? ' form-field-wide' : ''}`}
+            >
+              <span>{field.label}</span>
+              <FieldInput field={field} value={draft[field.key]} onChange={(value) => updateField(field.key, value)} />
+            </label>
+          ))}
+          <div className="form-actions">
+            <button type="submit" className="btn-primary">
+              Save
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleCancel}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {items.length === 0 ? (
+        <p className="empty-state">No records yet. Click "+ Add New" to create the first one.</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              {fields.map((field) => (
+                <th key={field.key}>{field.label}</th>
+              ))}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                {fields.map((field) => (
+                  <td key={field.key}>{displayValue(field, item[field.key])}</td>
+                ))}
+                <td>
+                  <button className="btn-remove" onClick={() => removeItem(item.id)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
