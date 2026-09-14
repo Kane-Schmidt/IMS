@@ -5,10 +5,22 @@ const LEGACY_PRODUCTS_KEY = 'ims_products'
 
 const AppDataContext = createContext(null)
 
+const defaultState = {
+  products: [],
+  inventoryItems: [],
+  orders: [],
+  bundles: [],
+  users: [],
+  totalSeats: 25,
+  tickets: [],
+}
+
 function loadInitialState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    // Merge over defaults so fields added after a browser's save (e.g. from an
+    // earlier version of the app) don't come back as undefined and crash.
+    if (raw) return { ...defaultState, ...JSON.parse(raw) }
   } catch {
     // ignore corrupt storage
   }
@@ -23,15 +35,7 @@ function loadInitialState() {
     // ignore corrupt legacy storage
   }
 
-  return {
-    products: seedProducts,
-    inventoryItems: [],
-    orders: [],
-    bundles: [],
-    users: [],
-    totalSeats: 25,
-    tickets: [],
-  }
+  return { ...defaultState, products: seedProducts }
 }
 
 function reducer(state, action) {
