@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { WAREHOUSES, siteName } from '../data/sites.js'
 import { SUPERVISORS } from '../data/supervisors.js'
@@ -21,7 +21,8 @@ const TABS = ['New Order', 'Drafts', 'Pending Approval']
 
 export default function PlaceOrder() {
   const { products, orders, addOrder, submitDraft, reviewOrder } = useAppData()
-  const [activeTab, setActiveTab] = useState('New Order')
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState(() => (TABS.includes(location.state?.tab) ? location.state.tab : 'New Order'))
   const [form, setForm] = useState(emptyForm)
   const [message, setMessage] = useState('')
   const [reviewingOrder, setReviewingOrder] = useState(null)
