@@ -297,6 +297,10 @@ body {
 
 /* Data table */
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
