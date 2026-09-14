@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppData } from '../data/AppDataContext.jsx'
+import { SUPPORT_EMAIL } from '../data/appInfo.js'
 
-const SUPPORT_EMAIL = 'erik.k.schmidt1995@gmail.com'
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent']
 
 const emptyForm = { subject: '', priority: 'Medium', description: '' }

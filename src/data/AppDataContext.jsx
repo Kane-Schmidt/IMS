@@ -146,9 +146,6 @@ function reducer(state, action) {
         ),
       }
 
-    case 'SET_TOTAL_SEATS':
-      return { ...state, totalSeats: action.value }
-
     case 'ADD_TICKET':
       return { ...state, tickets: [...state.tickets, action.ticket] }
 
@@ -209,9 +206,6 @@ export function AppDataProvider({ children }) {
       },
       toggleUserActive(id) {
         dispatch({ type: 'TOGGLE_USER_ACTIVE', id })
-      },
-      setTotalSeats(value) {
-        dispatch({ type: 'SET_TOTAL_SEATS', value })
       },
       addTicket(ticket) {
         dispatch({
