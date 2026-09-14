@@ -16,7 +16,11 @@ export const locationFields = [
     type: 'select',
     options: ['Warehouse', 'Office', 'Storage Facility', 'Distribution Center', 'Retail Store'],
   },
-  { key: 'address', label: 'Address', type: 'text' },
+  { key: 'street', label: 'Street', type: 'text' },
+  { key: 'unitNumber', label: 'Unit Number', type: 'text', required: false },
+  { key: 'city', label: 'City', type: 'text' },
+  { key: 'state', label: 'State', type: 'text' },
+  { key: 'zipCode', label: 'Zip Code', type: 'text' },
   { key: 'storageLocations', label: 'Storage Locations', type: 'storageLocations' },
 ]
 

@@ -126,7 +126,7 @@ function FieldInput({ field, value, onChange }) {
 
   if (field.type === 'select') {
     return (
-      <select value={value} onChange={(event) => onChange(event.target.value)} required>
+      <select value={value} onChange={(event) => onChange(event.target.value)} required={field.required !== false}>
         <option value="" disabled>
           Select {field.label}
         </option>
@@ -148,7 +148,7 @@ function FieldInput({ field, value, onChange }) {
       type={field.type === 'number' ? 'number' : 'text'}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      required
+      required={field.required !== false}
     />
   )
 }
@@ -195,7 +195,7 @@ export default function MasterDataPage({ title, storageKey, fields }) {
   function startEdit(item) {
     const record = {}
     fields.forEach((field) => {
-      record[field.key] = item[field.key]
+      record[field.key] = item[field.key] ?? emptyValueFor(field)
     })
     setDraft(record)
     setEditingId(item.id)
