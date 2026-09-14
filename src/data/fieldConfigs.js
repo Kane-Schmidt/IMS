@@ -89,4 +89,6 @@ export const vehicleFields = [
     type: 'select',
     options: ['Truck', 'Van', 'Sedan', 'SUV', 'Trailer'],
   },
+  { key: 'purchasePrice', label: 'Purchase Price', type: 'number', currency: true },
+  { key: 'inServiceDate', label: 'In-Service Date', type: 'date' },
 ]

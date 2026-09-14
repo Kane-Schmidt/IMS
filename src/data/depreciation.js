@@ -57,11 +57,13 @@ export function depreciateAsset({ cost, placedInServiceDate, model, asOfDate = n
   return { accumulatedDepreciation: 0, netBookValue: basisCost }
 }
 
-// Projects company-wide totals (net book value + accumulated depreciation)
-// for each of the next `years` calendar years, summed across every owned
-// unit of every product. Year 0 is today. Used for the Finance trend chart
-// and schedule table.
-export function projectCompanyDepreciation({ products, inventoryItems, years }) {
+// Projects totals (gross cost, accumulated depreciation, net book value)
+// for each of the next `years` calendar years, summed across a flat list of
+// assets ({ cost, placedInServiceDate, model }). Year 0 is today. This is
+// the shared engine behind both the product fleet and the vehicle fleet
+// trend charts — anything that can be reduced to a list of individually
+// dated, individually costed assets can use it.
+export function projectAssetsDepreciation(assets, years) {
   const today = new Date()
   const points = []
 
@@ -73,22 +75,84 @@ export function projectCompanyDepreciation({ products, inventoryItems, years }) 
     let accumulatedDepreciation = 0
     let grossCost = 0
 
-    products.forEach((product) => {
-      const model = product.depreciationModel
-      const cost = Number(product.purchasePrice) || 0
-
-      inventoryItems
-        .filter((item) => item.productId === product.id)
-        .forEach((item) => {
-          grossCost += cost
-          const result = depreciateAsset({ cost, placedInServiceDate: item.receivedAt, model, asOfDate })
-          netBookValue += result.netBookValue
-          accumulatedDepreciation += result.accumulatedDepreciation
-        })
+    assets.forEach(({ cost, placedInServiceDate, model }) => {
+      grossCost += Number(cost) || 0
+      const result = depreciateAsset({ cost, placedInServiceDate, model, asOfDate })
+      netBookValue += result.netBookValue
+      accumulatedDepreciation += result.accumulatedDepreciation
     })
 
     points.push({ year: asOfDate.getFullYear(), grossCost, accumulatedDepreciation, netBookValue })
   }
 
   return points
+}
+
+// Products are a type with many physical units (inventoryItems), each
+// received on its own date, so this flattens them into per-unit assets
+// before delegating to projectAssetsDepreciation.
+export function projectCompanyDepreciation({ products, inventoryItems, years }) {
+  const assets = []
+
+  products.forEach((product) => {
+    const model = product.depreciationModel
+    const cost = Number(product.purchasePrice) || 0
+
+    inventoryItems
+      .filter((item) => item.productId === product.id)
+      .forEach((item) => {
+        assets.push({ cost, placedInServiceDate: item.receivedAt, model })
+      })
+  })
+
+  return projectAssetsDepreciation(assets, years)
+}
+
+// Today's aggregate totals (no projection) for the product fleet — used by
+// Reports, which only needs the summary figure, not the per-row detail.
+export function computeProductFleetTotals(products, inventoryItems) {
+  let unitsOwned = 0
+  let grossCost = 0
+  let accumulatedDepreciation = 0
+
+  products.forEach((product) => {
+    const model = product.depreciationModel
+    const cost = Number(product.purchasePrice) || 0
+
+    inventoryItems
+      .filter((item) => item.productId === product.id)
+      .forEach((item) => {
+        unitsOwned += 1
+        grossCost += cost
+        accumulatedDepreciation += depreciateAsset({
+          cost,
+          placedInServiceDate: item.receivedAt,
+          model,
+        }).accumulatedDepreciation
+      })
+  })
+
+  return { unitsOwned, grossCost, accumulatedDepreciation, netBookValue: grossCost - accumulatedDepreciation }
+}
+
+// Today's aggregate totals (no projection) for the vehicle fleet.
+export function computeVehicleFleetTotals(vehicles) {
+  let unitsOwned = 0
+  let grossCost = 0
+  let accumulatedDepreciation = 0
+
+  vehicles.forEach((vehicle) => {
+    const cost = Number(vehicle.purchasePrice) || 0
+    unitsOwned += 1
+    grossCost += cost
+    if (vehicle.purchasePrice && vehicle.inServiceDate) {
+      accumulatedDepreciation += depreciateAsset({
+        cost,
+        placedInServiceDate: vehicle.inServiceDate,
+        model: vehicle.depreciationModel,
+      }).accumulatedDepreciation
+    }
+  })
+
+  return { unitsOwned, grossCost, accumulatedDepreciation, netBookValue: grossCost - accumulatedDepreciation }
 }

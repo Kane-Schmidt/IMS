@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
+import { siteName } from './sites.js'
 
 const STORAGE_KEY = 'ims_app_data'
 const LEGACY_PRODUCTS_KEY = 'ims_products'
+const MAX_LOG_ENTRIES = 300
 
 const AppDataContext = createContext(null)
 
@@ -13,6 +15,7 @@ const defaultState = {
   users: [],
   totalSeats: 25,
   tickets: [],
+  activityLog: [],
 }
 
 function loadInitialState() {
@@ -38,10 +41,26 @@ function loadInitialState() {
   return { ...defaultState, products: seedProducts }
 }
 
+// Appends one entry to the activity log, capped to the most recent
+// MAX_LOG_ENTRIES so localStorage doesn't grow without bound. siteIds records
+// which warehouses/trucks an event touched, so Reports can compute traffic
+// per site without re-parsing description text.
+function logActivity(activityLog, { type, description, siteIds = [] }) {
+  const entry = { id: crypto.randomUUID(), timestamp: new Date().toISOString(), type, description, siteIds }
+  return [...activityLog, entry].slice(-MAX_LOG_ENTRIES)
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'ADD_PRODUCT':
-      return { ...state, products: [...state.products, action.product] }
+      return {
+        ...state,
+        products: [...state.products, action.product],
+        activityLog: logActivity(state.activityLog, {
+          type: 'product',
+          description: `Added product ${action.product.manufacturer} ${action.product.modelNumber}`,
+        }),
+      }
 
     case 'UPDATE_PRODUCT':
       return {
@@ -49,53 +68,97 @@ function reducer(state, action) {
         products: state.products.map((product) =>
           product.id === action.id ? { ...product, ...action.updates } : product,
         ),
+        activityLog: logActivity(state.activityLog, {
+          type: 'product',
+          description: `Updated product ${action.updates.manufacturer} ${action.updates.modelNumber}`,
+        }),
       }
 
-    case 'TOGGLE_PRODUCT_ACTIVE':
+    case 'TOGGLE_PRODUCT_ACTIVE': {
+      const product = state.products.find((item) => item.id === action.id)
       return {
         ...state,
-        products: state.products.map((product) =>
-          product.id === action.id ? { ...product, active: !product.active } : product,
+        products: state.products.map((item) =>
+          item.id === action.id ? { ...item, active: !item.active } : item,
         ),
+        activityLog: product
+          ? logActivity(state.activityLog, {
+              type: 'product',
+              description: `${product.active ? 'Deactivated' : 'Activated'} product ${product.manufacturer} ${product.modelNumber}`,
+            })
+          : state.activityLog,
       }
+    }
 
-    case 'SET_DEPRECIATION_MODEL':
+    case 'SET_DEPRECIATION_MODEL': {
+      const product = state.products.find((item) => item.id === action.id)
       return {
         ...state,
-        products: state.products.map((product) =>
-          product.id === action.id ? { ...product, depreciationModel: action.model } : product,
+        products: state.products.map((item) =>
+          item.id === action.id ? { ...item, depreciationModel: action.model } : item,
         ),
+        activityLog: product
+          ? logActivity(state.activityLog, {
+              type: 'finance',
+              description: `Set depreciation model for ${product.manufacturer} ${product.modelNumber}: ${action.model.method}`,
+            })
+          : state.activityLog,
       }
+    }
 
     case 'ADD_ORDER':
-      return { ...state, orders: [...state.orders, action.order] }
-
-    case 'SUBMIT_DRAFT':
       return {
         ...state,
-        orders: state.orders.map((order) =>
-          order.id === action.id
-            ? { ...order, status: 'pending-approval', submittedAt: new Date().toISOString() }
-            : order,
-        ),
+        orders: [...state.orders, action.order],
+        activityLog: logActivity(state.activityLog, {
+          type: 'order',
+          description: `${action.order.status === 'draft' ? 'Drafted' : 'Submitted'} order ${action.order.poNumber} (${action.order.vendor})`,
+        }),
       }
 
-    case 'REVIEW_ORDER':
+    case 'SUBMIT_DRAFT': {
+      const order = state.orders.find((item) => item.id === action.id)
       return {
         ...state,
-        orders: state.orders.map((order) =>
-          order.id === action.id
+        orders: state.orders.map((item) =>
+          item.id === action.id
+            ? { ...item, status: 'pending-approval', submittedAt: new Date().toISOString() }
+            : item,
+        ),
+        activityLog: order
+          ? logActivity(state.activityLog, { type: 'order', description: `Submitted draft order ${order.poNumber} for approval` })
+          : state.activityLog,
+      }
+    }
+
+    case 'REVIEW_ORDER': {
+      const order = state.orders.find((item) => item.id === action.id)
+      return {
+        ...state,
+        orders: state.orders.map((item) =>
+          item.id === action.id
             ? {
-                ...order,
+                ...item,
                 status: action.decision === 'approve' ? 'approved' : 'rejected',
-                rejectionComment: action.decision === 'reject' ? action.comment : order.rejectionComment,
+                rejectionComment: action.decision === 'reject' ? action.comment : item.rejectionComment,
                 reviewedAt: new Date().toISOString(),
               }
-            : order,
+            : item,
         ),
+        activityLog: order
+          ? logActivity(state.activityLog, {
+              type: 'order',
+              description:
+                action.decision === 'approve'
+                  ? `Approved order ${order.poNumber}`
+                  : `Rejected order ${order.poNumber}: ${action.comment}`,
+            })
+          : state.activityLog,
       }
+    }
 
     case 'RECEIVE_ORDER': {
+      const order = state.orders.find((item) => item.id === action.orderId)
       const newItems = action.scannedItems.map((scan) => ({
         id: crypto.randomUUID(),
         serial: scan.serial,
@@ -108,26 +171,39 @@ function reducer(state, action) {
       return {
         ...state,
         inventoryItems: [...state.inventoryItems, ...newItems],
-        orders: state.orders.map((order) =>
-          order.id === action.orderId
+        orders: state.orders.map((item) =>
+          item.id === action.orderId
             ? {
-                ...order,
+                ...item,
                 status: 'received',
                 receivedAt: new Date().toISOString(),
                 palletBoxCount: action.palletBoxCount,
               }
-            : order,
+            : item,
         ),
+        activityLog: logActivity(state.activityLog, {
+          type: 'receive',
+          description: `Received ${newItems.length} unit(s) for ${order ? order.poNumber : 'order'} into ${siteName(action.destinationLocationId)}`,
+          siteIds: [action.destinationLocationId],
+        }),
       }
     }
 
-    case 'RELOCATE_ITEMS':
+    case 'RELOCATE_ITEMS': {
+      const movedItems = state.inventoryItems.filter((item) => action.itemIds.includes(item.id))
+      const sourceIds = [...new Set(movedItems.map((item) => item.locationId))]
       return {
         ...state,
         inventoryItems: state.inventoryItems.map((item) =>
           action.itemIds.includes(item.id) ? { ...item, locationId: action.destinationLocationId } : item,
         ),
+        activityLog: logActivity(state.activityLog, {
+          type: 'relocate',
+          description: `Moved ${movedItems.length} item(s) from ${sourceIds.map(siteName).join(', ')} to ${siteName(action.destinationLocationId)}`,
+          siteIds: [...sourceIds, action.destinationLocationId],
+        }),
       }
+    }
 
     case 'CREATE_BUNDLE':
       return {
@@ -136,34 +212,70 @@ function reducer(state, action) {
         inventoryItems: state.inventoryItems.map((item) =>
           action.bundle.itemIds.includes(item.id) ? { ...item, bundleId: action.bundle.id } : item,
         ),
+        activityLog: logActivity(state.activityLog, {
+          type: 'bundle',
+          description: `Created bundle "${action.bundle.name}" with ${action.bundle.itemIds.length} item(s) at ${siteName(action.bundle.warehouseLocationId)}`,
+          siteIds: [action.bundle.warehouseLocationId],
+        }),
       }
 
-    case 'BREAK_BUNDLE':
+    case 'BREAK_BUNDLE': {
+      const bundle = state.bundles.find((item) => item.id === action.id)
       return {
         ...state,
-        bundles: state.bundles.map((bundle) =>
-          bundle.id === action.id
-            ? { ...bundle, status: 'broken', brokenAt: new Date().toISOString() }
-            : bundle,
+        bundles: state.bundles.map((item) =>
+          item.id === action.id
+            ? { ...item, status: 'broken', brokenAt: new Date().toISOString() }
+            : item,
         ),
         inventoryItems: state.inventoryItems.map((item) =>
           item.bundleId === action.id ? { ...item, bundleId: null } : item,
         ),
+        activityLog: bundle
+          ? logActivity(state.activityLog, {
+              type: 'bundle',
+              description: `Broke bundle "${bundle.name}"`,
+              siteIds: [bundle.warehouseLocationId],
+            })
+          : state.activityLog,
       }
+    }
 
     case 'ADD_USER':
-      return { ...state, users: [...state.users, action.user] }
-
-    case 'TOGGLE_USER_ACTIVE':
       return {
         ...state,
-        users: state.users.map((user) =>
-          user.id === action.id ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' } : user,
-        ),
+        users: [...state.users, action.user],
+        activityLog: logActivity(state.activityLog, {
+          type: 'user',
+          description: `Added user ${action.user.name} (${action.user.email})`,
+        }),
       }
 
+    case 'TOGGLE_USER_ACTIVE': {
+      const user = state.users.find((item) => item.id === action.id)
+      return {
+        ...state,
+        users: state.users.map((item) =>
+          item.id === action.id ? { ...item, status: item.status === 'active' ? 'inactive' : 'active' } : item,
+        ),
+        activityLog: user
+          ? logActivity(state.activityLog, {
+              type: 'user',
+              description: `${user.status === 'active' ? 'Deactivated' : 'Activated'} user ${user.name}`,
+            })
+          : state.activityLog,
+      }
+    }
+
     case 'ADD_TICKET':
-      return { ...state, tickets: [...state.tickets, action.ticket] }
+      return {
+        ...state,
+        tickets: [...state.tickets, action.ticket],
+        activityLog: logActivity(state.activityLog, {
+          type: 'support',
+          description: `Support ticket submitted: ${action.ticket.subject}`,
+        }),
+      }
 
     default:
       return state

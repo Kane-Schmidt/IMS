@@ -301,6 +301,11 @@ body {
   overflow-x: auto;
 }
 
+.activity-log-scroll {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
 /* Trend chart */
 
 .chart-card {
@@ -311,8 +316,31 @@ body {
   margin-bottom: 2rem;
 }
 
-.chart-card h2 {
+.chart-card h2,
+.chart-card h3 {
   margin-top: 0;
+}
+
+.finance-section {
+  margin-bottom: 3rem;
+  padding-bottom: 3rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.finance-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.schedule-details {
+  margin: 0 0 2rem;
+}
+
+.schedule-details summary {
+  cursor: pointer;
+  color: var(--color-signal-yellow);
+  margin-bottom: 0.75rem;
 }
 
 .trend-chart {
@@ -445,7 +473,8 @@ body {
 .inventory-page h1,
 .admin-page h1,
 .support-page h1,
-.finance-page h1 {
+.finance-page h1,
+.reports-page h1 {
   color: var(--color-steel-blue);
 }
 

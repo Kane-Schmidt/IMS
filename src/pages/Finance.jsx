@@ -1,23 +1,49 @@
 import { useState } from 'react'
 import { useAppData } from '../data/AppDataContext.jsx'
-import Modal from '../components/Modal.jsx'
-import TrendChart from '../components/TrendChart.jsx'
-import { DEPRECIATION_METHODS, methodLabel, depreciateAsset, projectCompanyDepreciation } from '../data/depreciation.js'
+import { useCollection } from '../data/useCollection.js'
+import DepreciationModelModal from '../components/DepreciationModelModal.jsx'
+import FleetDepreciationSummary, { currency } from '../components/FleetDepreciationSummary.jsx'
+import { methodLabel, depreciateAsset, projectCompanyDepreciation, projectAssetsDepreciation } from '../data/depreciation.js'
 
 const emptyModel = { method: 'none', usefulLifeYears: '', salvageValue: '', decliningRate: '' }
 const PROJECTION_YEARS = 10
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 2,
-})
-
-function currency(value) {
-  return currencyFormatter.format(Number(value) || 0)
-}
+const TABS = ['Depreciation']
 
 export default function Finance() {
+  const [activeTab, setActiveTab] = useState('Depreciation')
+
+  return (
+    <div className="finance-page">
+      <h1>Finance</h1>
+
+      <div className="tab-bar">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            className={`tab-button${activeTab === tab ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'Depreciation' && <DepreciationTab />}
+    </div>
+  )
+}
+
+function DepreciationTab() {
+  return (
+    <div className="depreciation-tab">
+      <ProductDepreciationSection />
+      <VehicleDepreciationSection />
+    </div>
+  )
+}
+
+function ProductDepreciationSection() {
   const { products, inventoryItems, setDepreciationModel } = useAppData()
   const [editingProduct, setEditingProduct] = useState(null)
 
@@ -59,43 +85,24 @@ export default function Finance() {
   )
 
   const projection = projectCompanyDepreciation({ products, inventoryItems, years: PROJECTION_YEARS })
-  const chartData = projection.map((point) => ({ year: point.year, value: point.netBookValue }))
 
   return (
-    <div className="finance-page">
-      <h1>Finance</h1>
+    <section className="finance-section">
+      <h2>Product Inventory Depreciation</h2>
       <p className="page-subtitle">
-        Fixed-asset depreciation by product, computed from each owned unit's actual cost and received date — rolls up
-        to company-wide net book value.
+        Computed from each owned unit's actual cost and received date — data managed independently from vehicles.
       </p>
-
-      <div className="kpi-strip">
-        <div className="kpi-card">
-          <span className="kpi-value">{totals.unitsOwned}</span>
-          <span className="kpi-label">Units Owned</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-value">{currency(totals.grossCost)}</span>
-          <span className="kpi-label">Gross Fixed Asset Cost</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-value">{currency(totals.accumulatedDepreciation)}</span>
-          <span className="kpi-label">Accumulated Depreciation</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-value">{currency(totals.netBookValue)}</span>
-          <span className="kpi-label">Net Book Value</span>
-        </div>
-      </div>
 
       {rows.length === 0 ? (
         <p className="empty-state">No products yet. Add products under Master Data or Admin first.</p>
       ) : (
         <>
-          <div className="chart-card">
-            <h2>Net Book Value Trend</h2>
-            <TrendChart data={chartData} label="Projected company-wide net book value over the next 10 years" />
-          </div>
+          <FleetDepreciationSummary
+            unitsLabel="Units Owned"
+            totals={totals}
+            chartLabel="Projected product inventory net book value over the next 10 years"
+            projection={projection}
+          />
 
           <div className="table-scroll">
             <table className="data-table">
@@ -137,31 +144,120 @@ export default function Finance() {
               </tbody>
             </table>
           </div>
+        </>
+      )}
 
-          <h2>Company-Wide Depreciation Schedule</h2>
-          <p className="page-subtitle">
-            Projected from currently owned assets only — does not assume future purchases or disposals.
-          </p>
+      {editingProduct && (
+        <DepreciationModelModal
+          title={`${editingProduct.manufacturer} ${editingProduct.modelNumber}`}
+          initialModel={editingProduct.depreciationModel}
+          onSave={(model) => {
+            setDepreciationModel(editingProduct.id, model)
+            setEditingProduct(null)
+          }}
+          onClose={() => setEditingProduct(null)}
+        />
+      )}
+    </section>
+  )
+}
+
+function VehicleDepreciationSection() {
+  const { items: vehicles, updateItem } = useCollection('ims_vehicles')
+  const [editingVehicle, setEditingVehicle] = useState(null)
+
+  const rows = vehicles.map((vehicle) => {
+    const model = vehicle.depreciationModel ?? emptyModel
+    const cost = Number(vehicle.purchasePrice) || 0
+    const hasCostBasis = vehicle.purchasePrice && vehicle.inServiceDate
+    const result = hasCostBasis
+      ? depreciateAsset({ cost, placedInServiceDate: vehicle.inServiceDate, model })
+      : { accumulatedDepreciation: 0, netBookValue: cost }
+
+    return {
+      vehicle,
+      model,
+      hasCostBasis,
+      grossCost: cost,
+      accumulatedDepreciation: result.accumulatedDepreciation,
+      netBookValue: result.netBookValue,
+    }
+  })
+
+  const totals = rows.reduce(
+    (acc, row) => ({
+      unitsOwned: acc.unitsOwned + 1,
+      grossCost: acc.grossCost + row.grossCost,
+      accumulatedDepreciation: acc.accumulatedDepreciation + row.accumulatedDepreciation,
+      netBookValue: acc.netBookValue + row.netBookValue,
+    }),
+    { unitsOwned: 0, grossCost: 0, accumulatedDepreciation: 0, netBookValue: 0 },
+  )
+
+  const assets = rows
+    .filter((row) => row.hasCostBasis)
+    .map((row) => ({ cost: row.grossCost, placedInServiceDate: row.vehicle.inServiceDate, model: row.model }))
+  const projection = projectAssetsDepreciation(assets, PROJECTION_YEARS)
+
+  return (
+    <section className="finance-section">
+      <h2>Vehicle Fleet Depreciation</h2>
+      <p className="page-subtitle">
+        Managed separately from product inventory — each vehicle is its own asset, using its own purchase price and
+        in-service date from Vehicle Master Data.
+      </p>
+
+      {rows.length === 0 ? (
+        <p className="empty-state">No vehicles yet. Add vehicles under Master Data → Vehicle Master Data first.</p>
+      ) : (
+        <>
+          <FleetDepreciationSummary
+            unitsLabel="Vehicles Owned"
+            totals={totals}
+            chartLabel="Projected vehicle fleet net book value over the next 10 years"
+            projection={projection}
+          />
+
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Year</th>
-                  <th>Gross Cost</th>
+                  <th>Vehicle Number</th>
+                  <th>Manufacturer</th>
+                  <th>Model</th>
+                  <th>Purchase Price</th>
+                  <th>Depreciation Method</th>
+                  <th>Useful Life</th>
+                  <th>Salvage Value (Resell)</th>
                   <th>Accum. Depreciation</th>
                   <th>Net Book Value</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {projection.map((point, index) => (
-                  <tr key={point.year}>
+                {rows.map(({ vehicle, model, hasCostBasis, accumulatedDepreciation, netBookValue }) => (
+                  <tr key={vehicle.id}>
+                    <td>{vehicle.vehicleNumber}</td>
+                    <td>{vehicle.manufacturer}</td>
+                    <td>{vehicle.model}</td>
+                    <td>{vehicle.purchasePrice ? currency(vehicle.purchasePrice) : '—'}</td>
+                    <td>{hasCostBasis ? methodLabel(model.method) : 'Needs price + in-service date'}</td>
+                    <td>{hasCostBasis && model.method !== 'none' && model.usefulLifeYears ? `${model.usefulLifeYears} yrs` : '—'}</td>
                     <td>
-                      {point.year}
-                      {index === 0 ? ' (today)' : ''}
+                      {hasCostBasis && model.method !== 'none' && model.salvageValue !== '' ? currency(model.salvageValue) : '—'}
                     </td>
-                    <td>{currency(point.grossCost)}</td>
-                    <td>{currency(point.accumulatedDepreciation)}</td>
-                    <td>{currency(point.netBookValue)}</td>
+                    <td>{currency(accumulatedDepreciation)}</td>
+                    <td>{currency(netBookValue)}</td>
+                    <td>
+                      <button
+                        className="btn-secondary"
+                        disabled={!hasCostBasis}
+                        title={hasCostBasis ? undefined : 'Set Purchase Price and In-Service Date in Vehicle Master Data first'}
+                        onClick={() => setEditingVehicle(vehicle)}
+                      >
+                        Edit Model
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -170,94 +266,17 @@ export default function Finance() {
         </>
       )}
 
-      {editingProduct && (
+      {editingVehicle && (
         <DepreciationModelModal
-          product={editingProduct}
+          title={`${editingVehicle.vehicleNumber} — ${editingVehicle.manufacturer} ${editingVehicle.model}`}
+          initialModel={editingVehicle.depreciationModel}
           onSave={(model) => {
-            setDepreciationModel(editingProduct.id, model)
-            setEditingProduct(null)
+            updateItem(editingVehicle.id, { depreciationModel: model })
+            setEditingVehicle(null)
           }}
-          onClose={() => setEditingProduct(null)}
+          onClose={() => setEditingVehicle(null)}
         />
       )}
-    </div>
-  )
-}
-
-function DepreciationModelModal({ product, onSave, onClose }) {
-  const [model, setModel] = useState(() => ({ ...emptyModel, ...(product.depreciationModel ?? {}) }))
-
-  function updateField(key, value) {
-    setModel((prev) => ({ ...prev, [key]: value }))
-  }
-
-  function handleSubmit(event) {
-    event.preventDefault()
-    onSave(model)
-  }
-
-  return (
-    <Modal title={`Depreciation Model — ${product.manufacturer} ${product.modelNumber}`} onClose={onClose}>
-      <form className="record-form" onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>Method</span>
-          <select value={model.method} onChange={(event) => updateField('method', event.target.value)}>
-            {DEPRECIATION_METHODS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {model.method !== 'none' && (
-          <>
-            <label className="form-field">
-              <span>Useful Life (years)</span>
-              <input
-                type="number"
-                min="1"
-                value={model.usefulLifeYears}
-                onChange={(event) => updateField('usefulLifeYears', event.target.value)}
-                required
-              />
-            </label>
-            <label className="form-field">
-              <span>Salvage / Resell Value ($)</span>
-              <input
-                type="number"
-                min="0"
-                value={model.salvageValue}
-                onChange={(event) => updateField('salvageValue', event.target.value)}
-                required
-              />
-            </label>
-          </>
-        )}
-
-        {model.method === 'declining-balance' && (
-          <label className="form-field">
-            <span>Declining Balance Rate (%)</span>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={model.decliningRate}
-              onChange={(event) => updateField('decliningRate', event.target.value)}
-              required
-            />
-          </label>
-        )}
-
-        <div className="form-actions">
-          <button type="submit" className="btn-primary">
-            Save
-          </button>
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-        </div>
-      </form>
-    </Modal>
+    </section>
   )
 }

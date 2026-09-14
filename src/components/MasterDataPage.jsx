@@ -145,7 +145,7 @@ function FieldInput({ field, value, onChange }) {
 
   return (
     <input
-      type={field.type === 'number' ? 'number' : 'text'}
+      type={field.type === 'number' || field.type === 'date' ? field.type : 'text'}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       required={field.required !== false}
