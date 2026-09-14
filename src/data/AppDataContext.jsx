@@ -51,6 +51,14 @@ function reducer(state, action) {
         ),
       }
 
+    case 'SET_DEPRECIATION_MODEL':
+      return {
+        ...state,
+        products: state.products.map((product) =>
+          product.id === action.id ? { ...product, depreciationModel: action.model } : product,
+        ),
+      }
+
     case 'ADD_ORDER':
       return { ...state, orders: [...state.orders, action.order] }
 
@@ -172,6 +180,9 @@ export function AppDataProvider({ children }) {
       },
       toggleProductActive(id) {
         dispatch({ type: 'TOGGLE_PRODUCT_ACTIVE', id })
+      },
+      setDepreciationModel(id, model) {
+        dispatch({ type: 'SET_DEPRECIATION_MODEL', id, model })
       },
       addOrder(order) {
         const id = crypto.randomUUID()

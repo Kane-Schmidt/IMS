@@ -7,6 +7,7 @@ import ReceiveOrder from './pages/ReceiveOrder.jsx'
 import Relocate from './pages/Relocate.jsx'
 import BundleManagement from './pages/BundleManagement.jsx'
 import Inventory from './pages/Inventory.jsx'
+import Finance from './pages/Finance.jsx'
 import Reports from './pages/Reports.jsx'
 import Admin from './pages/Admin.jsx'
 import Support from './pages/Support.jsx'
@@ -28,6 +29,7 @@ function App() {
             <Route path="/relocate" element={<Relocate />} />
             <Route path="/bundles" element={<BundleManagement />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/finance" element={<Finance />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/support" element={<Support />} />

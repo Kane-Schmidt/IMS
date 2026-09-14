@@ -354,7 +354,8 @@ body {
 .home-page h1,
 .inventory-page h1,
 .admin-page h1,
-.support-page h1 {
+.support-page h1,
+.finance-page h1 {
   color: var(--color-steel-blue);
 }
 

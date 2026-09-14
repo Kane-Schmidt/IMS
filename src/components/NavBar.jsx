@@ -10,6 +10,7 @@ const masterDataLinks = [
 
 const primaryLinks = [
   { to: '/inventory', label: 'Inventory' },
+  { to: '/finance', label: 'Finance' },
   { to: '/reports', label: 'Reports' },
   { to: '/admin', label: 'Admin' },
   { to: '/support', label: 'Support' },
