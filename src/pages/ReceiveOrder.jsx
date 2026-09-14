@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { siteName } from '../data/sites.js'
 import PrintableLabels from '../components/PrintableLabels.jsx'
@@ -85,6 +86,9 @@ export default function ReceiveOrder() {
   if (!selectedOrder) {
     return (
       <div className="receive-order-page">
+        <Link to="/inventory" className="breadcrumb-link">
+          ← Back to Inventory
+        </Link>
         <h1>Receive an Order</h1>
         {approvedOrders.length === 0 ? (
           <p className="empty-state">No approved orders are waiting to be received.</p>
@@ -122,6 +126,9 @@ export default function ReceiveOrder() {
 
   return (
     <div className="receive-order-page">
+      <Link to="/inventory" className="breadcrumb-link">
+        ← Back to Inventory
+      </Link>
       <h1>Receive Order {selectedOrder.poNumber}</h1>
       <div className="wizard-steps">
         <span className={step === 1 ? 'wizard-step active' : 'wizard-step'}>1. Confirm Count</span>

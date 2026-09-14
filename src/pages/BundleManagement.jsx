@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { WAREHOUSES, siteName } from '../data/sites.js'
 import PrintableLabels from '../components/PrintableLabels.jsx'
@@ -56,6 +57,9 @@ export default function BundleManagement() {
 
   return (
     <div className="bundle-page">
+      <Link to="/inventory" className="breadcrumb-link">
+        ← Back to Inventory
+      </Link>
       <h1>Bundle Management</h1>
 
       <div className="tab-bar">

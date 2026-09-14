@@ -1,8 +1,82 @@
+import { Link } from 'react-router-dom'
+import { useAppData } from '../data/AppDataContext.jsx'
+import { TRUCKS } from '../data/sites.js'
+
+function isOnTruck(locationId) {
+  return TRUCKS.some((truck) => truck.id === locationId)
+}
+
 export default function Inventory() {
+  const { orders, inventoryItems, bundles } = useAppData()
+
+  const totalInStock = inventoryItems.length
+  const pendingApprovals = orders.filter((order) => order.status === 'pending-approval').length
+  const approvedReady = orders.filter((order) => order.status === 'approved').length
+  const itemsOnTrucks = inventoryItems.filter((item) => isOnTruck(item.locationId)).length
+  const activeBundles = bundles.filter((bundle) => bundle.status === 'active').length
+
+  const kpis = [
+    { label: 'Total in Stock', value: totalInStock },
+    { label: 'Approved Orders', value: approvedReady },
+    { label: 'Pending Approval', value: pendingApprovals },
+    { label: 'On Trucks', value: itemsOnTrucks },
+  ]
+
+  const tiles = [
+    {
+      to: '/place-order',
+      label: 'Place an Order',
+      description: 'Submit POs for vendor equipment',
+      badge: pendingApprovals,
+      sub: 'pending approval',
+    },
+    {
+      to: '/receive-order',
+      label: 'Receive an Order',
+      description: 'Check in shipments against approved orders',
+      badge: approvedReady,
+      sub: 'ready to receive',
+    },
+    {
+      to: '/relocate',
+      label: 'Relocate',
+      description: 'Move inventory between warehouses or vehicles',
+      badge: itemsOnTrucks,
+      sub: 'on trucks',
+    },
+    {
+      to: '/bundles',
+      label: 'Bundle Management',
+      description: 'Create install kits, break bundles, print asset tags',
+      badge: activeBundles,
+      sub: 'active bundles',
+    },
+  ]
+
   return (
-    <div className="page-placeholder">
-      <h1>Inventory</h1>
-      <p>Stock levels and movement tracking will live here.</p>
+    <div className="inventory-page">
+      <h1>Inventory Management</h1>
+
+      <div className="kpi-strip">
+        {kpis.map((kpi) => (
+          <div className="kpi-card" key={kpi.label}>
+            <span className="kpi-value">{kpi.value}</span>
+            <span className="kpi-label">{kpi.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="module-tiles">
+        {tiles.map((tile) => (
+          <Link to={tile.to} className="module-tile" key={tile.to}>
+            <span className="module-tile-badge">{tile.badge}</span>
+            <span className="module-tile-label">{tile.label}</span>
+            <span className="module-tile-description">{tile.description}</span>
+            <span className="module-tile-sub">{tile.sub}</span>
+            <span className="module-tile-open">Open →</span>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

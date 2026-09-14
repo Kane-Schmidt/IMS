@@ -311,10 +311,27 @@ body {
   cursor: pointer;
 }
 
-/* Home: KPIs and module tiles */
+.breadcrumb-link {
+  display: inline-block;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
 
-.home-page h1 {
+.breadcrumb-link:hover {
+  color: var(--color-signal-yellow);
+}
+
+/* Home / Inventory: KPIs and module tiles */
+
+.home-page h1,
+.inventory-page h1 {
   color: var(--color-steel-blue);
+}
+
+.home-page a {
+  color: var(--color-signal-yellow);
 }
 
 .kpi-strip {
@@ -392,9 +409,21 @@ body {
   padding-right: 2rem;
 }
 
+.module-tile-description {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
 .module-tile-sub {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+.module-tile-open {
+  color: var(--color-signal-yellow);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
 }
 
 /* Tabs */

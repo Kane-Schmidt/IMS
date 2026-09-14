@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { SITES, siteById } from '../data/sites.js'
 
@@ -66,6 +67,9 @@ export default function Relocate() {
 
   return (
     <div className="relocate-page">
+      <Link to="/inventory" className="breadcrumb-link">
+        ← Back to Inventory
+      </Link>
       <h1>Relocate</h1>
 
       <div className="site-grid">

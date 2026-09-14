@@ -9,10 +9,6 @@ const masterDataLinks = [
 ]
 
 const primaryLinks = [
-  { to: '/place-order', label: 'Place an Order' },
-  { to: '/receive-order', label: 'Receive an Order' },
-  { to: '/relocate', label: 'Relocate' },
-  { to: '/bundles', label: 'Bundle Management' },
   { to: '/inventory', label: 'Inventory' },
   { to: '/reports', label: 'Reports' },
   { to: '/admin', label: 'Admin' },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { WAREHOUSES, siteName } from '../data/sites.js'
 import { SUPERVISORS } from '../data/supervisors.js'
@@ -94,6 +95,9 @@ export default function PlaceOrder() {
 
   return (
     <div className="place-order-page">
+      <Link to="/inventory" className="breadcrumb-link">
+        ← Back to Inventory
+      </Link>
       <h1>Place an Order</h1>
 
       <div className="tab-bar">
