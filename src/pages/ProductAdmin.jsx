@@ -4,9 +4,10 @@ import { useAppData } from '../data/AppDataContext.jsx'
 const emptyDraft = { manufacturer: '', modelNumber: '', purchasePrice: '' }
 
 export default function ProductAdmin() {
-  const { products, addProduct, toggleProductActive } = useAppData()
+  const { products, addProduct, updateProduct, toggleProductActive } = useAppData()
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState(emptyDraft)
+  const [editingId, setEditingId] = useState(null)
 
   function updateField(key, value) {
     setDraft((prev) => ({ ...prev, [key]: value }))
@@ -14,9 +15,36 @@ export default function ProductAdmin() {
 
   function handleSubmit(event) {
     event.preventDefault()
-    addProduct(draft)
+    if (editingId) {
+      updateProduct(editingId, draft)
+    } else {
+      addProduct(draft)
+    }
     setDraft(emptyDraft)
+    setEditingId(null)
     setShowForm(false)
+  }
+
+  function handleCancel() {
+    setDraft(emptyDraft)
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  function startEdit(product) {
+    setDraft({
+      manufacturer: product.manufacturer,
+      modelNumber: product.modelNumber,
+      purchasePrice: product.purchasePrice,
+    })
+    setEditingId(product.id)
+    setShowForm(true)
+  }
+
+  function startAdd() {
+    setDraft(emptyDraft)
+    setEditingId(null)
+    setShowForm(true)
   }
 
   return (
@@ -24,7 +52,7 @@ export default function ProductAdmin() {
       <div className="page-header">
         <h1>Product Master Data</h1>
         {!showForm && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
+          <button className="btn-primary" onClick={startAdd}>
             + Add Product
           </button>
         )}
@@ -61,16 +89,9 @@ export default function ProductAdmin() {
           </label>
           <div className="form-actions">
             <button type="submit" className="btn-primary">
-              Save
+              {editingId ? 'Save Changes' : 'Save'}
             </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setDraft(emptyDraft)
-                setShowForm(false)
-              }}
-            >
+            <button type="button" className="btn-secondary" onClick={handleCancel}>
               Cancel
             </button>
           </div>
@@ -101,7 +122,10 @@ export default function ProductAdmin() {
                     {product.active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td>
+                <td className="row-actions">
+                  <button className="btn-secondary" onClick={() => startEdit(product)}>
+                    Edit
+                  </button>
                   <button className="btn-secondary" onClick={() => toggleProductActive(product.id)}>
                     {product.active ? 'Deactivate' : 'Activate'}
                   </button>

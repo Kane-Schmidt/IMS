@@ -43,6 +43,14 @@ function reducer(state, action) {
     case 'ADD_PRODUCT':
       return { ...state, products: [...state.products, action.product] }
 
+    case 'UPDATE_PRODUCT':
+      return {
+        ...state,
+        products: state.products.map((product) =>
+          product.id === action.id ? { ...product, ...action.updates } : product,
+        ),
+      }
+
     case 'TOGGLE_PRODUCT_ACTIVE':
       return {
         ...state,
@@ -177,6 +185,9 @@ export function AppDataProvider({ children }) {
     () => ({
       addProduct(product) {
         dispatch({ type: 'ADD_PRODUCT', product: { id: crypto.randomUUID(), active: true, ...product } })
+      },
+      updateProduct(id, updates) {
+        dispatch({ type: 'UPDATE_PRODUCT', id, updates })
       },
       toggleProductActive(id) {
         dispatch({ type: 'TOGGLE_PRODUCT_ACTIVE', id })
