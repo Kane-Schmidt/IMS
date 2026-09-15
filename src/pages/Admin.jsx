@@ -217,7 +217,13 @@ export default function Admin() {
       <div className="page-header">
         <h2>User Management</h2>
         {canManageMembers && (
-          <button className="btn-primary" onClick={() => setShowInvite(true)}>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              setError('')
+              setShowInvite(true)
+            }}
+          >
             + Invite User
           </button>
         )}
@@ -270,7 +276,13 @@ export default function Admin() {
                   <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
                   {canManageMembers && (
                     <td className="row-actions sticky-col">
-                      <button className="btn-secondary" onClick={() => setEditingMember(member)}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => {
+                          setError('')
+                          setEditingMember(member)
+                        }}
+                      >
                         Edit
                       </button>
                       <button
@@ -353,6 +365,7 @@ export default function Admin() {
           vehicles={vehicles}
           locations={locations}
           members={members}
+          error={error}
           onSave={async (updates) => {
             const saved = await updateMember(editingMember.id, updates)
             if (saved) setEditingMember(null)
@@ -368,6 +381,7 @@ export default function Admin() {
           locations={locations}
           members={members}
           invites={invites}
+          error={error}
           onSave={async (fields) => {
             const saved = await createInvite(fields)
             if (saved) setShowInvite(false)
@@ -490,7 +504,7 @@ function MemberFieldset({
   )
 }
 
-function MemberModal({ member, warehouses, vehicles, locations, members, onSave, onClose }) {
+function MemberModal({ member, warehouses, vehicles, locations, members, error, onSave, onClose }) {
   const [firstName, setFirstName] = useState(member.first_name ?? '')
   const [lastName, setLastName] = useState(member.last_name ?? '')
   const [dateOfHire, setDateOfHire] = useState(member.date_of_hire ?? '')
@@ -528,6 +542,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, onSave,
   return (
     <Modal title={member.email} onClose={onClose}>
       <form className="record-form" onSubmit={handleSubmit}>
+        {error && <p className="field-error form-field-wide">{error}</p>}
         <MemberFieldset
           firstName={firstName}
           setFirstName={setFirstName}
@@ -563,7 +578,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, onSave,
   )
 }
 
-function InviteMemberModal({ warehouses, vehicles, locations, members, invites, onSave, onClose }) {
+function InviteMemberModal({ warehouses, vehicles, locations, members, invites, error, onSave, onClose }) {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -604,6 +619,7 @@ function InviteMemberModal({ warehouses, vehicles, locations, members, invites, 
   return (
     <Modal title="Invite New User" onClose={onClose}>
       <form className="record-form" onSubmit={handleSubmit}>
+        {error && <p className="field-error form-field-wide">{error}</p>}
         <label className="form-field">
           <span>Email</span>
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
