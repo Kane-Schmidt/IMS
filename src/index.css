@@ -1119,34 +1119,6 @@ body {
   gap: 0.5rem;
 }
 
-/* A wide, horizontally-scrolling data table paired with a second, narrow
-   table holding row actions that never scrolls — see TableWithActions.
-   This keeps actions reachable without scrolling through the wide table,
-   more reliably than a "sticky" column inside one scrolling table (which
-   has known quirks combined with border-collapse). */
-.table-with-actions {
-  display: flex;
-  align-items: flex-start;
-}
-
-.table-with-actions .table-scroll {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.data-table.scroll-part {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: none;
-}
-
-.data-table.actions-part {
-  flex: 0 0 auto;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  white-space: nowrap;
-}
-
 /* Printable labels */
 
 .printable-labels-toolbar {
