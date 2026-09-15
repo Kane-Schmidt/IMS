@@ -32,6 +32,7 @@ export default function Admin() {
   const [showSeatRequest, setShowSeatRequest] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [editingMember, setEditingMember] = useState(null)
+  const [viewingMember, setViewingMember] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -242,7 +243,6 @@ export default function Admin() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th>Date of Hire</th>
                 <th>Home Office</th>
                 <th>Receiver</th>
                 {canManageMembers && <th></th>}
@@ -260,7 +260,6 @@ export default function Admin() {
                       {member.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>{member.date_of_hire || '—'}</td>
                   <td>{locationLabel(locations, member.home_office_location_id)}</td>
                   <td>{member.is_receiver ? 'Yes' : 'No'}</td>
                   {canManageMembers && (
@@ -273,6 +272,9 @@ export default function Admin() {
                         }}
                       >
                         Edit
+                      </button>
+                      <button className="btn-secondary" onClick={() => setViewingMember(member)}>
+                        View
                       </button>
                       <button
                         className="btn-secondary"
@@ -306,7 +308,6 @@ export default function Admin() {
                     <th>First Name</th>
                     <th>Last Name</th>
                     <th>Role</th>
-                    <th>Date of Hire</th>
                     <th>Home Office</th>
                     <th>Receiver</th>
                     <th></th>
@@ -319,7 +320,6 @@ export default function Admin() {
                       <td>{invite.first_name || '—'}</td>
                       <td>{invite.last_name || '—'}</td>
                       <td>{invite.role}</td>
-                      <td>{invite.date_of_hire || '—'}</td>
                       <td>{locationLabel(locations, invite.home_office_location_id)}</td>
                       <td>{invite.is_receiver ? 'Yes' : 'No'}</td>
                       <td className="row-actions">
@@ -356,6 +356,18 @@ export default function Admin() {
             if (saved) setEditingMember(null)
           }}
           onClose={() => setEditingMember(null)}
+        />
+      )}
+
+      {viewingMember && (
+        <MemberModal
+          member={viewingMember}
+          warehouses={warehouses}
+          vehicles={vehicles}
+          locations={locations}
+          members={members}
+          readOnly
+          onClose={() => setViewingMember(null)}
         />
       )}
 
@@ -402,24 +414,30 @@ function MemberFieldset({
   warehouses,
   vehicles,
   locations,
+  readOnly = false,
 }) {
   return (
     <>
       <label className="form-field">
         <span>First Name</span>
-        <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+        <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} disabled={readOnly} />
       </label>
       <label className="form-field">
         <span>Last Name</span>
-        <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} />
+        <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} disabled={readOnly} />
       </label>
       <label className="form-field">
         <span>Date of Hire</span>
-        <input type="date" value={dateOfHire} onChange={(event) => setDateOfHire(event.target.value)} />
+        <input
+          type="date"
+          value={dateOfHire}
+          onChange={(event) => setDateOfHire(event.target.value)}
+          disabled={readOnly}
+        />
       </label>
       <label className="form-field">
         <span>Home Office</span>
-        <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)}>
+        <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)} disabled={readOnly}>
           <option value="">None</option>
           {locations.map((location) => (
             <option key={location.id} value={location.id}>
@@ -430,7 +448,7 @@ function MemberFieldset({
       </label>
       <label className="form-field">
         <span>Role</span>
-        <select value={role} onChange={(event) => setRole(event.target.value)}>
+        <select value={role} onChange={(event) => setRole(event.target.value)} disabled={readOnly}>
           {ROLES.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -440,12 +458,17 @@ function MemberFieldset({
       </label>
       <label className="form-field">
         <span>Receiver</span>
-        <input type="checkbox" checked={isReceiver} onChange={(event) => setIsReceiver(event.target.checked)} />
+        <input
+          type="checkbox"
+          checked={isReceiver}
+          onChange={(event) => setIsReceiver(event.target.checked)}
+          disabled={readOnly}
+        />
       </label>
 
       <div className="form-field form-field-wide">
         <span>Assigned Vehicle (optional)</span>
-        <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
+        <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} disabled={readOnly}>
           <option value="">None</option>
           {vehicles.map((vehicle) => (
             <option key={vehicle.id} value={vehicle.id}>
@@ -472,6 +495,7 @@ function MemberFieldset({
                   type="checkbox"
                   checked={assigned.includes(warehouse.id)}
                   onChange={() => toggleWarehouse(warehouse.id)}
+                  disabled={readOnly}
                 />
                 <span>{warehouse.name}</span>
               </label>
@@ -489,7 +513,7 @@ function MemberFieldset({
   )
 }
 
-function MemberModal({ member, warehouses, vehicles, locations, members, error, onSave, onClose }) {
+function MemberModal({ member, warehouses, vehicles, locations, members, error, readOnly = false, onSave, onClose }) {
   const [firstName, setFirstName] = useState(member.first_name ?? '')
   const [lastName, setLastName] = useState(member.last_name ?? '')
   const [dateOfHire, setDateOfHire] = useState(member.date_of_hire ?? '')
@@ -511,7 +535,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, error, 
 
   function handleSubmit(event) {
     event.preventDefault()
-    if (vehicleHolder) return
+    if (readOnly || vehicleHolder) return
     onSave({
       first_name: firstName.trim(),
       last_name: lastName.trim(),
@@ -549,14 +573,23 @@ function MemberModal({ member, warehouses, vehicles, locations, members, error, 
           warehouses={warehouses}
           vehicles={vehicles}
           locations={locations}
+          readOnly={readOnly}
         />
         <div className="form-actions">
-          <button type="submit" className="btn-primary" disabled={Boolean(vehicleHolder)}>
-            Save
-          </button>
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
+          {readOnly ? (
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Close
+            </button>
+          ) : (
+            <>
+              <button type="submit" className="btn-primary" disabled={Boolean(vehicleHolder)}>
+                Save
+              </button>
+              <button type="button" className="btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </form>
     </Modal>
