@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { useWarehouses } from '../data/useSites.js'
 import { useAuth } from '../lib/AuthContext.jsx'
@@ -11,15 +11,24 @@ function generateSerial() {
 
 export default function ReceiveOrder() {
   const { orders, products, receiveOrder } = useAppData()
-  const { siteName } = useWarehouses()
+  const { warehouses, siteName, loaded: warehousesLoaded } = useWarehouses()
   const { profile } = useAuth()
+  const location = useLocation()
 
   // Only receivers can receive, and only into warehouses they're assigned to.
   const isReceiver = profile?.is_receiver === true
   const assignedWarehouses = profile?.assigned_warehouses ?? []
   const canReceiveInto = (locationId) => isReceiver && assignedWarehouses.includes(locationId)
+  const myWarehouses = warehouses.filter((wh) => assignedWarehouses.includes(wh.id))
 
-  const approvedOrders = orders.filter((order) => order.status === 'approved')
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(() => {
+    const requested = location.state?.warehouseId
+    return requested && assignedWarehouses.includes(requested) ? requested : ''
+  })
+
+  const approvedOrders = orders.filter(
+    (order) => order.status === 'approved' && order.destinationLocationId === selectedWarehouseId,
+  )
 
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [step, setStep] = useState(1)
@@ -95,6 +104,49 @@ export default function ReceiveOrder() {
     return <PrintableLabels title="Asset Labels" labels={labels} onDone={finishAndReset} />
   }
 
+  if (!isReceiver) {
+    return (
+      <div className="receive-order-page">
+        <Link to="/inventory" className="breadcrumb-link">
+          ← Back to Inventory
+        </Link>
+        <h1>Receive an Order</h1>
+        <p className="warning-banner">
+          Your account is not set up as a receiver, so you can't receive equipment. An admin can enable this under
+          Admin → User Management.
+        </p>
+      </div>
+    )
+  }
+
+  if (!selectedWarehouseId) {
+    return (
+      <div className="receive-order-page">
+        <Link to="/inventory" className="breadcrumb-link">
+          ← Back to Inventory
+        </Link>
+        <h1>Receive an Order</h1>
+        <p className="page-subtitle">Select the warehouse you're receiving this order for.</p>
+
+        {!warehousesLoaded ? (
+          <p className="empty-state">Loading warehouses…</p>
+        ) : myWarehouses.length === 0 ? (
+          <p className="empty-state">
+            You aren't assigned to any warehouses yet. An admin can assign you under Admin → User Management.
+          </p>
+        ) : (
+          <div className="site-grid">
+            {myWarehouses.map((wh) => (
+              <button key={wh.id} className="site-card" onClick={() => setSelectedWarehouseId(wh.id)}>
+                <span className="site-name">{wh.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (!selectedOrder) {
     return (
       <div className="receive-order-page">
@@ -102,20 +154,21 @@ export default function ReceiveOrder() {
           ← Back to Inventory
         </Link>
         <h1>Receive an Order</h1>
-        {!isReceiver ? (
-          <p className="warning-banner">
-            Your account is not set up as a receiver, so you can't receive equipment. An admin can enable this under
-            Admin → User Management.
-          </p>
-        ) : approvedOrders.length === 0 ? (
-          <p className="empty-state">No approved orders are waiting to be received.</p>
+        <p className="page-subtitle">
+          Receiving for <strong>{siteName(selectedWarehouseId)}</strong>.{' '}
+          <button type="button" className="btn-secondary" onClick={() => setSelectedWarehouseId('')}>
+            Change Warehouse
+          </button>
+        </p>
+
+        {approvedOrders.length === 0 ? (
+          <p className="empty-state">No approved orders are waiting to be received at this warehouse.</p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
                 <th>PO Number</th>
                 <th>Vendor</th>
-                <th>Destination</th>
                 <th>Expected Date</th>
                 <th></th>
               </tr>
@@ -125,16 +178,11 @@ export default function ReceiveOrder() {
                 <tr key={order.id}>
                   <td>{order.poNumber}</td>
                   <td>{order.vendor}</td>
-                  <td>{siteName(order.destinationLocationId)}</td>
                   <td>{order.expectedDate}</td>
                   <td>
-                    {canReceiveInto(order.destinationLocationId) ? (
-                      <button className="btn-primary" onClick={() => startReceiving(order)}>
-                        Receive
-                      </button>
-                    ) : (
-                      <span className="empty-state">Not your warehouse</span>
-                    )}
+                    <button className="btn-primary" onClick={() => startReceiving(order)}>
+                      Receive
+                    </button>
                   </td>
                 </tr>
               ))}

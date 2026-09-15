@@ -7,7 +7,7 @@ function tableFor(storageKey) {
   return storageKey.replace(/^ims_/, '')
 }
 
-// Employee/Location/Vehicle Master Data all go through this one hook.
+// Location/Vehicle Master Data all go through this one hook.
 // Reads are scoped to the caller's organization automatically by Row-Level
 // Security; writes include organization_id explicitly since RLS requires it
 // to match on insert. Updates are optimistic (local state changes

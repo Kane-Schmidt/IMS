@@ -50,6 +50,13 @@ export default function Inventory() {
       badge: activeBundles,
       sub: 'active bundles',
     },
+    {
+      to: '/inventory/stock-by-warehouse',
+      label: 'Stock by Warehouse',
+      description: 'See what has actually been received, by warehouse and device',
+      badge: totalInStock,
+      sub: 'units in stock',
+    },
   ]
 
   return (

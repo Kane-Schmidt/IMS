@@ -4,7 +4,6 @@ import { useAuth } from '../lib/AuthContext.jsx'
 
 const masterDataLinks = [
   { to: '/master-data/products', label: 'Product Master Data' },
-  { to: '/master-data/employees', label: 'Employee Master Data' },
   { to: '/master-data/locations', label: 'Location Master Data' },
   { to: '/master-data/vehicles', label: 'Vehicle Master Data' },
 ]

@@ -7,10 +7,10 @@ import Modal from '../components/Modal.jsx'
 
 const emptyLineItem = () => ({ id: crypto.randomUUID(), productId: '', quantity: 1 })
 
-const emptyForm = () => ({
+const emptyForm = (warehouseId = '') => ({
   poNumber: '',
   vendor: '',
-  destinationLocationId: '',
+  destinationLocationId: warehouseId,
   expectedDate: '',
   supervisor: '',
   lineItems: [emptyLineItem()],
@@ -21,16 +21,34 @@ const TABS = ['New Order', 'Drafts', 'Pending Approval']
 
 export default function PlaceOrder() {
   const { products, orders, addOrder, submitDraft, reviewOrder } = useAppData()
-  const { warehouses, siteName } = useWarehouses()
+  const { warehouses, siteName, loaded: warehousesLoaded } = useWarehouses()
   const location = useLocation()
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(location.state?.warehouseId || '')
   const [activeTab, setActiveTab] = useState(() => (TABS.includes(location.state?.tab) ? location.state.tab : 'New Order'))
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(() => emptyForm(location.state?.warehouseId || ''))
   const [message, setMessage] = useState('')
   const [reviewingOrder, setReviewingOrder] = useState(null)
 
   const activeProducts = products.filter((product) => product.active)
-  const drafts = orders.filter((order) => order.status === 'draft')
-  const pending = orders.filter((order) => order.status === 'pending-approval')
+  const drafts = orders.filter(
+    (order) => order.status === 'draft' && order.destinationLocationId === selectedWarehouseId,
+  )
+  const pending = orders.filter(
+    (order) => order.status === 'pending-approval' && order.destinationLocationId === selectedWarehouseId,
+  )
+
+  function selectWarehouse(id) {
+    setSelectedWarehouseId(id)
+    setForm(emptyForm(id))
+    setMessage('')
+  }
+
+  function changeWarehouse() {
+    setSelectedWarehouseId('')
+    setActiveTab('New Order')
+    setForm(emptyForm())
+    setMessage('')
+  }
 
   function updateForm(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -77,7 +95,7 @@ export default function PlaceOrder() {
     }
     addOrder({ ...form, status: 'draft' })
     setMessage(`Draft ${form.poNumber} saved.`)
-    setForm(emptyForm())
+    setForm(emptyForm(selectedWarehouseId))
   }
 
   function handleSubmit() {
@@ -87,12 +105,40 @@ export default function PlaceOrder() {
     }
     addOrder({ ...form, status: 'pending-approval' })
     setMessage(`Order ${form.poNumber} submitted for approval.`)
-    setForm(emptyForm())
+    setForm(emptyForm(selectedWarehouseId))
   }
 
   function productLabel(id) {
     const product = products.find((p) => p.id === id)
     return product ? `${product.manufacturer} ${product.modelNumber}` : 'Unknown product'
+  }
+
+  if (!selectedWarehouseId) {
+    return (
+      <div className="place-order-page">
+        <Link to="/inventory" className="breadcrumb-link">
+          ← Back to Inventory
+        </Link>
+        <h1>Place an Order</h1>
+        <p className="page-subtitle">Select the warehouse you're placing this order for.</p>
+
+        {!warehousesLoaded ? (
+          <p className="empty-state">Loading warehouses…</p>
+        ) : warehouses.length === 0 ? (
+          <p className="empty-state">
+            No warehouses yet. Add a location with type Warehouse under Master Data → Location Master Data first.
+          </p>
+        ) : (
+          <div className="site-grid">
+            {warehouses.map((wh) => (
+              <button key={wh.id} className="site-card" onClick={() => selectWarehouse(wh.id)}>
+                <span className="site-name">{wh.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -101,6 +147,12 @@ export default function PlaceOrder() {
         ← Back to Inventory
       </Link>
       <h1>Place an Order</h1>
+      <p className="page-subtitle">
+        Ordering for <strong>{siteName(selectedWarehouseId)}</strong>.{' '}
+        <button type="button" className="btn-secondary" onClick={changeWarehouse}>
+          Change Warehouse
+        </button>
+      </p>
 
       <div className="tab-bar">
         {TABS.map((tab) => (
@@ -127,22 +179,6 @@ export default function PlaceOrder() {
             <label className="form-field">
               <span>Vendor</span>
               <input type="text" value={form.vendor} onChange={(e) => updateForm('vendor', e.target.value)} />
-            </label>
-            <label className="form-field">
-              <span>Destination Warehouse</span>
-              <select
-                value={form.destinationLocationId}
-                onChange={(e) => updateForm('destinationLocationId', e.target.value)}
-              >
-                <option value="" disabled>
-                  Select warehouse
-                </option>
-                {warehouses.map((wh) => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <label className="form-field">
               <span>Expected Date</span>

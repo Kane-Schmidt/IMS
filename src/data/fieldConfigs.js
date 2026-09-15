@@ -51,16 +51,6 @@ const US_STATES = [
   'Wyoming',
 ]
 
-export const employeeFields = [
-  { key: 'firstName', label: 'First Name', type: 'text' },
-  { key: 'lastName', label: 'Last Name', type: 'text' },
-  { key: 'regionAssigned', label: 'Region Assigned', type: 'text' },
-  { key: 'truckAssigned', label: 'Truck Assigned', type: 'number' },
-  { key: 'homeOfficeLocation', label: 'Home Office Location', type: 'text' },
-  { key: 'jobTitle', label: 'Job Title', type: 'text' },
-  { key: 'isAdmin', label: 'Admin', type: 'checkbox' },
-]
-
 export const locationFields = [
   { key: 'locationName', label: 'Location Name', type: 'text' },
   {

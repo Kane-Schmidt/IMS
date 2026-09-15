@@ -694,7 +694,8 @@ body {
 .admin-page h1,
 .support-page h1,
 .finance-page h1,
-.reports-page h1 {
+.reports-page h1,
+.stock-by-warehouse-page h1 {
   color: var(--color-steel-blue);
 }
 

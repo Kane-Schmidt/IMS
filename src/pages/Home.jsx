@@ -23,13 +23,14 @@ export default function Home() {
       type: 'Approve PO',
       description: `${order.poNumber} — ${order.vendor}`,
       to: '/place-order',
-      state: { tab: 'Pending Approval' },
+      state: { tab: 'Pending Approval', warehouseId: order.destinationLocationId },
     })),
     ...approvedOrders.map((order) => ({
       id: `receive-${order.id}`,
       type: 'Receive Order',
       description: `${order.poNumber} — ${order.vendor} → ${siteName(order.destinationLocationId)}`,
       to: '/receive-order',
+      state: { warehouseId: order.destinationLocationId },
     })),
     ...openTickets.map((ticket) => ({
       id: `ticket-${ticket.id}`,

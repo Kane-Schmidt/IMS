@@ -15,9 +15,9 @@ import Reports from './pages/Reports.jsx'
 import Admin from './pages/Admin.jsx'
 import Support from './pages/Support.jsx'
 import ProductMasterData from './pages/masterdata/ProductMasterData.jsx'
-import EmployeeMasterData from './pages/masterdata/EmployeeMasterData.jsx'
 import LocationMasterData from './pages/masterdata/LocationMasterData.jsx'
 import VehicleMasterData from './pages/masterdata/VehicleMasterData.jsx'
+import StockByWarehouse from './pages/StockByWarehouse.jsx'
 
 function AuthGate() {
   const { loading, user, profile } = useAuth()
@@ -50,12 +50,12 @@ function AuthGate() {
             <Route path="/relocate" element={<Relocate />} />
             <Route path="/bundles" element={<BundleManagement />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory/stock-by-warehouse" element={<StockByWarehouse />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/support" element={<Support />} />
             <Route path="/master-data/products" element={<ProductMasterData />} />
-            <Route path="/master-data/employees" element={<EmployeeMasterData />} />
             <Route path="/master-data/locations" element={<LocationMasterData />} />
             <Route path="/master-data/vehicles" element={<VehicleMasterData />} />
           </Routes>
