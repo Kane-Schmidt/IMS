@@ -1119,6 +1119,20 @@ body {
   gap: 0.5rem;
 }
 
+/* Pins a table's last column (typically row actions) to the right edge of
+   the visible viewport, so it stays reachable without scrolling through a
+   wide table. */
+.sticky-col {
+  position: sticky;
+  right: 0;
+  background-color: var(--color-panel);
+  box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.5);
+}
+
+.data-table th.sticky-col {
+  background-color: var(--color-carbon-black);
+}
+
 /* Printable labels */
 
 .printable-labels-toolbar {

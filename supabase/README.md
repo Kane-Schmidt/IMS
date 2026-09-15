@@ -8,6 +8,7 @@ paste into the Supabase SQL Editor (Project → SQL Editor → New query):
 3. `003_operational_data.sql` — orders, inventory, bundles, tickets, activity log
 4. `004_row_level_security.sql` — access rules, scoped per organization
 5. `005_profile_details.sql` — first/last name, date of hire, home office on profiles (needs 002 for the locations reference)
+6. `006_invites.sql` — admin-created pending invites by email, applied automatically when the invitee joins (needs 001, 002, 005)
 
 **Why one at a time, not all pasted together:** a pasted SQL block runs as a
 single transaction. If any one statement in it fails, the *entire* block

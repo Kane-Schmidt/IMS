@@ -7,6 +7,8 @@ import { APP_VERSION, INSTALLED_AT, LAST_UPDATED_AT, SUPPORT_EMAIL } from '../da
 import Modal from '../components/Modal.jsx'
 
 const ROLES = ['admin', 'standard', 'read-only']
+const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flexible']
+const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
 
 function vehicleLabel(vehicles, id) {
   if (!id) return '—'
@@ -14,8 +16,17 @@ function vehicleLabel(vehicles, id) {
   if (!vehicle) return '—'
   return [vehicle.vehicleNumber, vehicle.model].filter(Boolean).join(' — ')
 }
-const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flexible']
-const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
+
+function locationLabel(locations, id) {
+  if (!id) return '—'
+  const location = locations.find((entry) => entry.id === id)
+  return location?.locationName ?? '—'
+}
+
+function memberLabel(member) {
+  const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ')
+  return fullName || member.name || member.email
+}
 
 export default function Admin() {
   const { organization, profile: myProfile, refreshProfile } = useAuth()
@@ -23,8 +34,10 @@ export default function Admin() {
   const { items: vehicles } = useCollection('ims_vehicles')
   const { items: locations } = useCollection('ims_locations')
   const [members, setMembers] = useState([])
+  const [invites, setInvites] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [showSeatRequest, setShowSeatRequest] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const [editingMember, setEditingMember] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -35,19 +48,19 @@ export default function Admin() {
     let active = true
     setLoaded(false)
 
-    supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .then(({ data, error }) => {
-        if (!active) return
-        if (error) {
-          console.error('Failed to load organization members:', error.message)
-        } else {
-          setMembers(data ?? [])
-        }
-        setLoaded(true)
-      })
+    Promise.all([
+      supabase.from('profiles').select('*').order('created_at', { ascending: true }),
+      supabase.from('invites').select('*').order('created_at', { ascending: true }),
+    ]).then(([profilesResult, invitesResult]) => {
+      if (!active) return
+      if (profilesResult.error) console.error('Failed to load organization members:', profilesResult.error.message)
+      else setMembers(profilesResult.data ?? [])
+
+      if (invitesResult.error) console.error('Failed to load pending invites:', invitesResult.error.message)
+      else setInvites(invitesResult.data ?? [])
+
+      setLoaded(true)
+    })
 
     return () => {
       active = false
@@ -79,6 +92,64 @@ export default function Admin() {
     // Keep the signed-in user's own permissions current if they edited themselves.
     if (id === myProfile?.id) await refreshProfile()
     return true
+  }
+
+  function buildInviteMailto(invite) {
+    const body = [
+      `You've been invited to join ${organization?.name ?? 'our team'} on Schmidt Systems IMS.`,
+      '',
+      `1. Sign up using this email address: ${invite.email}`,
+      `2. Choose "Join a Company" and enter this invite code: ${organization?.invite_code}`,
+      '',
+      "Your role and assignments are already set up and will apply automatically once you join.",
+    ].join('\n')
+
+    return `mailto:${invite.email}?subject=${encodeURIComponent(
+      `You're invited to ${organization?.name ?? 'Schmidt Systems IMS'}`,
+    )}&body=${encodeURIComponent(body)}`
+  }
+
+  function sendInviteEmail(invite) {
+    window.location.href = buildInviteMailto(invite)
+  }
+
+  async function createInvite(fields) {
+    setError('')
+    const email = fields.email.trim().toLowerCase()
+
+    if (members.some((member) => member.email?.toLowerCase() === email)) {
+      setError('That email already belongs to a member of this organization.')
+      return false
+    }
+
+    const { data, error: saveError } = await supabase
+      .from('invites')
+      .insert({ ...fields, email, organization_id: organization.id })
+      .select()
+
+    if (saveError) {
+      setError(
+        saveError.code === '23505'
+          ? 'This email has already been invited.'
+          : `Could not create invite: ${saveError.message}`,
+      )
+      return false
+    }
+
+    const newInvite = data[0]
+    setInvites((prev) => [...prev, newInvite])
+    sendInviteEmail(newInvite)
+    setMessage(`Invite created for ${newInvite.email}. Your email app should have opened — press send there to deliver it.`)
+    return true
+  }
+
+  async function cancelInvite(id) {
+    const { error: deleteError } = await supabase.from('invites').delete().eq('id', id)
+    if (deleteError) {
+      setError(`Could not cancel invite: ${deleteError.message}`)
+      return
+    }
+    setInvites((prev) => prev.filter((invite) => invite.id !== id))
   }
 
   async function copyInviteCode() {
@@ -145,6 +216,11 @@ export default function Admin() {
 
       <div className="page-header">
         <h2>User Management</h2>
+        {canManageMembers && (
+          <button className="btn-primary" onClick={() => setShowInvite(true)}>
+            + Invite User
+          </button>
+        )}
       </div>
 
       <p className="page-subtitle">
@@ -172,7 +248,7 @@ export default function Admin() {
                 <th>Receiver</th>
                 <th>Warehouses</th>
                 <th>Vehicle</th>
-                {canManageMembers && <th></th>}
+                {canManageMembers && <th className="sticky-col"></th>}
               </tr>
             </thead>
             <tbody>
@@ -193,7 +269,7 @@ export default function Admin() {
                   <td>{(member.assigned_warehouses ?? []).length}</td>
                   <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
                   {canManageMembers && (
-                    <td className="row-actions">
+                    <td className="row-actions sticky-col">
                       <button className="btn-secondary" onClick={() => setEditingMember(member)}>
                         Edit
                       </button>
@@ -210,6 +286,60 @@ export default function Admin() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {canManageMembers && (
+        <>
+          <div className="page-header">
+            <h2>Pending Invites</h2>
+          </div>
+
+          {invites.length === 0 ? (
+            <p className="empty-state">No pending invites.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Role</th>
+                    <th>Date of Hire</th>
+                    <th>Home Office</th>
+                    <th>Receiver</th>
+                    <th>Warehouses</th>
+                    <th>Vehicle</th>
+                    <th className="sticky-col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invites.map((invite) => (
+                    <tr key={invite.id}>
+                      <td>{invite.email}</td>
+                      <td>{invite.first_name || '—'}</td>
+                      <td>{invite.last_name || '—'}</td>
+                      <td>{invite.role}</td>
+                      <td>{invite.date_of_hire || '—'}</td>
+                      <td>{locationLabel(locations, invite.home_office_location_id)}</td>
+                      <td>{invite.is_receiver ? 'Yes' : 'No'}</td>
+                      <td>{(invite.assigned_warehouses ?? []).length}</td>
+                      <td>{vehicleLabel(vehicles, invite.assigned_vehicle_id)}</td>
+                      <td className="row-actions sticky-col">
+                        <button className="btn-secondary" onClick={() => sendInviteEmail(invite)}>
+                          Resend
+                        </button>
+                        <button className="btn-remove" onClick={() => cancelInvite(invite.id)}>
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {showSeatRequest && (
@@ -230,19 +360,134 @@ export default function Admin() {
           onClose={() => setEditingMember(null)}
         />
       )}
+
+      {showInvite && (
+        <InviteMemberModal
+          warehouses={warehouses}
+          vehicles={vehicles}
+          locations={locations}
+          members={members}
+          invites={invites}
+          onSave={async (fields) => {
+            const saved = await createInvite(fields)
+            if (saved) setShowInvite(false)
+          }}
+          onClose={() => setShowInvite(false)}
+        />
+      )}
     </div>
   )
 }
 
-function memberLabel(member) {
-  const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ')
-  return fullName || member.name || member.email
-}
+// Shared by MemberModal (editing an existing member) and InviteMemberModal
+// (creating a pending invite) — both need the same role/warehouse/vehicle/
+// home-office fields, just with different state sources and a submit step.
+function MemberFieldset({
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  dateOfHire,
+  setDateOfHire,
+  homeOfficeId,
+  setHomeOfficeId,
+  role,
+  setRole,
+  isReceiver,
+  setIsReceiver,
+  assigned,
+  toggleWarehouse,
+  vehicleId,
+  setVehicleId,
+  vehicleHolder,
+  warehouses,
+  vehicles,
+  locations,
+}) {
+  return (
+    <>
+      <label className="form-field">
+        <span>First Name</span>
+        <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+      </label>
+      <label className="form-field">
+        <span>Last Name</span>
+        <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} />
+      </label>
+      <label className="form-field">
+        <span>Date of Hire</span>
+        <input type="date" value={dateOfHire} onChange={(event) => setDateOfHire(event.target.value)} />
+      </label>
+      <label className="form-field">
+        <span>Home Office</span>
+        <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)}>
+          <option value="">None</option>
+          {locations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.locationName}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="form-field">
+        <span>Role</span>
+        <select value={role} onChange={(event) => setRole(event.target.value)}>
+          {ROLES.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="form-field">
+        <span>Receiver</span>
+        <input type="checkbox" checked={isReceiver} onChange={(event) => setIsReceiver(event.target.checked)} />
+      </label>
 
-function locationLabel(locations, id) {
-  if (!id) return '—'
-  const location = locations.find((entry) => entry.id === id)
-  return location?.locationName ?? '—'
+      <div className="form-field form-field-wide">
+        <span>Assigned Vehicle (optional)</span>
+        <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
+          <option value="">None</option>
+          {vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {[vehicle.vehicleNumber, vehicle.model].filter(Boolean).join(' — ')}
+            </option>
+          ))}
+        </select>
+        {vehicleHolder && (
+          <p className="field-error">This vehicle is already assigned to user {memberLabel(vehicleHolder)}.</p>
+        )}
+      </div>
+
+      <div className="form-field form-field-wide">
+        <span>Assigned Warehouses</span>
+        {warehouses.length === 0 ? (
+          <p className="empty-state">
+            No warehouses yet. Add a location with type Warehouse under Location Master Data first.
+          </p>
+        ) : (
+          <div className="warehouse-checklist">
+            {warehouses.map((warehouse) => (
+              <label key={warehouse.id} className="warehouse-checklist-option">
+                <input
+                  type="checkbox"
+                  checked={assigned.includes(warehouse.id)}
+                  onChange={() => toggleWarehouse(warehouse.id)}
+                />
+                <span>{warehouse.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {isReceiver && assigned.length === 0 && (
+        <p className="chart-card-note form-field-wide">
+          A receiver with no assigned warehouses won't be able to receive anything.
+        </p>
+      )}
+    </>
+  )
 }
 
 function MemberModal({ member, warehouses, vehicles, locations, members, onSave, onClose }) {
@@ -283,90 +528,115 @@ function MemberModal({ member, warehouses, vehicles, locations, members, onSave,
   return (
     <Modal title={member.email} onClose={onClose}>
       <form className="record-form" onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>First Name</span>
-          <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Last Name</span>
-          <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Date of Hire</span>
-          <input type="date" value={dateOfHire} onChange={(event) => setDateOfHire(event.target.value)} />
-        </label>
-        <label className="form-field">
-          <span>Home Office</span>
-          <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)}>
-            <option value="">None</option>
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.locationName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span>Role</span>
-          <select value={role} onChange={(event) => setRole(event.target.value)}>
-            {ROLES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span>Receiver</span>
-          <input type="checkbox" checked={isReceiver} onChange={(event) => setIsReceiver(event.target.checked)} />
-        </label>
-
-        <div className="form-field form-field-wide">
-          <span>Assigned Vehicle (optional)</span>
-          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
-            <option value="">None</option>
-            {vehicles.map((vehicle) => (
-              <option key={vehicle.id} value={vehicle.id}>
-                {[vehicle.vehicleNumber, vehicle.model].filter(Boolean).join(' — ')}
-              </option>
-            ))}
-          </select>
-          {vehicleHolder && (
-            <p className="field-error">This vehicle is already assigned to user {memberLabel(vehicleHolder)}.</p>
-          )}
-        </div>
-
-        <div className="form-field form-field-wide">
-          <span>Assigned Warehouses</span>
-          {warehouses.length === 0 ? (
-            <p className="empty-state">
-              No warehouses yet. Add a location with type Warehouse under Location Master Data first.
-            </p>
-          ) : (
-            <div className="warehouse-checklist">
-              {warehouses.map((warehouse) => (
-                <label key={warehouse.id} className="warehouse-checklist-option">
-                  <input
-                    type="checkbox"
-                    checked={assigned.includes(warehouse.id)}
-                    onChange={() => toggleWarehouse(warehouse.id)}
-                  />
-                  <span>{warehouse.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {isReceiver && assigned.length === 0 && (
-          <p className="chart-card-note form-field-wide">
-            A receiver with no assigned warehouses won't be able to receive anything.
-          </p>
-        )}
-
+        <MemberFieldset
+          firstName={firstName}
+          setFirstName={setFirstName}
+          lastName={lastName}
+          setLastName={setLastName}
+          dateOfHire={dateOfHire}
+          setDateOfHire={setDateOfHire}
+          homeOfficeId={homeOfficeId}
+          setHomeOfficeId={setHomeOfficeId}
+          role={role}
+          setRole={setRole}
+          isReceiver={isReceiver}
+          setIsReceiver={setIsReceiver}
+          assigned={assigned}
+          toggleWarehouse={toggleWarehouse}
+          vehicleId={vehicleId}
+          setVehicleId={setVehicleId}
+          vehicleHolder={vehicleHolder}
+          warehouses={warehouses}
+          vehicles={vehicles}
+          locations={locations}
+        />
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={Boolean(vehicleHolder)}>
             Save
+          </button>
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function InviteMemberModal({ warehouses, vehicles, locations, members, invites, onSave, onClose }) {
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [dateOfHire, setDateOfHire] = useState('')
+  const [homeOfficeId, setHomeOfficeId] = useState('')
+  const [role, setRole] = useState('standard')
+  const [isReceiver, setIsReceiver] = useState(false)
+  const [assigned, setAssigned] = useState([])
+  const [vehicleId, setVehicleId] = useState('')
+
+  // A vehicle can only belong to one person, whether an existing member or
+  // someone who hasn't joined yet.
+  const vehicleHolder = vehicleId
+    ? members.find((other) => other.assigned_vehicle_id === vehicleId) ||
+      invites.find((invite) => invite.assigned_vehicle_id === vehicleId)
+    : null
+
+  function toggleWarehouse(id) {
+    setAssigned((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]))
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    if (vehicleHolder || !email.trim()) return
+    onSave({
+      email: email.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      date_of_hire: dateOfHire || null,
+      home_office_location_id: homeOfficeId || null,
+      role,
+      is_receiver: isReceiver,
+      assigned_warehouses: assigned,
+      assigned_vehicle_id: vehicleId || null,
+    })
+  }
+
+  return (
+    <Modal title="Invite New User" onClose={onClose}>
+      <form className="record-form" onSubmit={handleSubmit}>
+        <label className="form-field">
+          <span>Email</span>
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        </label>
+        <MemberFieldset
+          firstName={firstName}
+          setFirstName={setFirstName}
+          lastName={lastName}
+          setLastName={setLastName}
+          dateOfHire={dateOfHire}
+          setDateOfHire={setDateOfHire}
+          homeOfficeId={homeOfficeId}
+          setHomeOfficeId={setHomeOfficeId}
+          role={role}
+          setRole={setRole}
+          isReceiver={isReceiver}
+          setIsReceiver={setIsReceiver}
+          assigned={assigned}
+          toggleWarehouse={toggleWarehouse}
+          vehicleId={vehicleId}
+          setVehicleId={setVehicleId}
+          vehicleHolder={vehicleHolder}
+          warehouses={warehouses}
+          vehicles={vehicles}
+          locations={locations}
+        />
+        <p className="chart-card-note form-field-wide">
+          This creates the invite and opens your email app with a message ready to send — it doesn't send
+          automatically.
+        </p>
+        <div className="form-actions">
+          <button type="submit" className="btn-primary" disabled={Boolean(vehicleHolder)}>
+            Create Invite &amp; Open Email
           </button>
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
