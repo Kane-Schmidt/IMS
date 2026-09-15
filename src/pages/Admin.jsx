@@ -28,6 +28,56 @@ function memberLabel(member) {
   return fullName || member.name || member.email
 }
 
+// A wide data table paired with a second, un-scrolled table holding just the
+// row actions. Splitting them like this (rather than a "sticky" column
+// inside one scrolling table) guarantees Edit/Deactivate stay reachable
+// without scrolling — they are structurally outside the scroll area, not
+// just visually pinned over it, which sidesteps sticky-positioning quirks
+// inside collapsed-border tables.
+function TableWithActions({ columns, rows, rowKey, actionsHeader, renderActions }) {
+  return (
+    <div className="table-with-actions">
+      <div className="table-scroll">
+        <table className="data-table scroll-part">
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key}>{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={rowKey(row)}>
+                {columns.map((column) => (
+                  <td key={column.key}>{column.render(row)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {renderActions && (
+        <table className="data-table actions-part">
+          <thead>
+            <tr>
+              <th>{actionsHeader}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={rowKey(row)}>
+                <td className="row-actions">{renderActions(row)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 export default function Admin() {
   const { organization, profile: myProfile, refreshProfile } = useAuth()
   const { warehouses } = useWarehouses()
@@ -240,64 +290,54 @@ export default function Admin() {
       {!loaded ? (
         <p className="empty-state">Loading…</p>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Date of Hire</th>
-                <th>Home Office</th>
-                <th>Receiver</th>
-                <th>Warehouses</th>
-                <th>Vehicle</th>
-                {canManageMembers && <th className="sticky-col"></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((member) => (
-                <tr key={member.id}>
-                  <td>{member.first_name || '—'}</td>
-                  <td>{member.last_name || '—'}</td>
-                  <td>{member.email}</td>
-                  <td>{member.role}</td>
-                  <td>
-                    <span className={`status-pill ${member.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                      {member.status === 'active' ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td>{member.date_of_hire || '—'}</td>
-                  <td>{locationLabel(locations, member.home_office_location_id)}</td>
-                  <td>{member.is_receiver ? 'Yes' : 'No'}</td>
-                  <td>{(member.assigned_warehouses ?? []).length}</td>
-                  <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
-                  {canManageMembers && (
-                    <td className="row-actions sticky-col">
-                      <button
-                        className="btn-secondary"
-                        onClick={() => {
-                          setError('')
-                          setEditingMember(member)
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
-                      >
-                        {member.status === 'active' ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TableWithActions
+          rows={members}
+          rowKey={(member) => member.id}
+          columns={[
+            { key: 'first', label: 'First Name', render: (m) => m.first_name || '—' },
+            { key: 'last', label: 'Last Name', render: (m) => m.last_name || '—' },
+            { key: 'email', label: 'Email', render: (m) => m.email },
+            { key: 'role', label: 'Role', render: (m) => m.role },
+            {
+              key: 'status',
+              label: 'Status',
+              render: (m) => (
+                <span className={`status-pill ${m.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                  {m.status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+              ),
+            },
+            { key: 'hire', label: 'Date of Hire', render: (m) => m.date_of_hire || '—' },
+            { key: 'office', label: 'Home Office', render: (m) => locationLabel(locations, m.home_office_location_id) },
+            { key: 'receiver', label: 'Receiver', render: (m) => (m.is_receiver ? 'Yes' : 'No') },
+            { key: 'warehouses', label: 'Warehouses', render: (m) => (m.assigned_warehouses ?? []).length },
+            { key: 'vehicle', label: 'Vehicle', render: (m) => vehicleLabel(vehicles, m.assigned_vehicle_id) },
+          ]}
+          actionsHeader=""
+          renderActions={
+            canManageMembers
+              ? (member) => (
+                  <>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        setError('')
+                        setEditingMember(member)
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
+                    >
+                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </>
+                )
+              : null
+          }
+        />
       )}
 
       {canManageMembers && (
@@ -309,47 +349,32 @@ export default function Admin() {
           {invites.length === 0 ? (
             <p className="empty-state">No pending invites.</p>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Role</th>
-                    <th>Date of Hire</th>
-                    <th>Home Office</th>
-                    <th>Receiver</th>
-                    <th>Warehouses</th>
-                    <th>Vehicle</th>
-                    <th className="sticky-col"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invites.map((invite) => (
-                    <tr key={invite.id}>
-                      <td>{invite.email}</td>
-                      <td>{invite.first_name || '—'}</td>
-                      <td>{invite.last_name || '—'}</td>
-                      <td>{invite.role}</td>
-                      <td>{invite.date_of_hire || '—'}</td>
-                      <td>{locationLabel(locations, invite.home_office_location_id)}</td>
-                      <td>{invite.is_receiver ? 'Yes' : 'No'}</td>
-                      <td>{(invite.assigned_warehouses ?? []).length}</td>
-                      <td>{vehicleLabel(vehicles, invite.assigned_vehicle_id)}</td>
-                      <td className="row-actions sticky-col">
-                        <button className="btn-secondary" onClick={() => sendInviteEmail(invite)}>
-                          Resend
-                        </button>
-                        <button className="btn-remove" onClick={() => cancelInvite(invite.id)}>
-                          Cancel
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TableWithActions
+              rows={invites}
+              rowKey={(invite) => invite.id}
+              columns={[
+                { key: 'email', label: 'Email', render: (i) => i.email },
+                { key: 'first', label: 'First Name', render: (i) => i.first_name || '—' },
+                { key: 'last', label: 'Last Name', render: (i) => i.last_name || '—' },
+                { key: 'role', label: 'Role', render: (i) => i.role },
+                { key: 'hire', label: 'Date of Hire', render: (i) => i.date_of_hire || '—' },
+                { key: 'office', label: 'Home Office', render: (i) => locationLabel(locations, i.home_office_location_id) },
+                { key: 'receiver', label: 'Receiver', render: (i) => (i.is_receiver ? 'Yes' : 'No') },
+                { key: 'warehouses', label: 'Warehouses', render: (i) => (i.assigned_warehouses ?? []).length },
+                { key: 'vehicle', label: 'Vehicle', render: (i) => vehicleLabel(vehicles, i.assigned_vehicle_id) },
+              ]}
+              actionsHeader=""
+              renderActions={(invite) => (
+                <>
+                  <button className="btn-secondary" onClick={() => sendInviteEmail(invite)}>
+                    Resend
+                  </button>
+                  <button className="btn-remove" onClick={() => cancelInvite(invite.id)}>
+                    Cancel
+                  </button>
+                </>
+              )}
+            />
           )}
         </>
       )}

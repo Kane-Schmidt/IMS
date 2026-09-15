@@ -1119,18 +1119,32 @@ body {
   gap: 0.5rem;
 }
 
-/* Pins a table's last column (typically row actions) to the right edge of
-   the visible viewport, so it stays reachable without scrolling through a
-   wide table. */
-.sticky-col {
-  position: sticky;
-  right: 0;
-  background-color: var(--color-panel);
-  box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.5);
+/* A wide, horizontally-scrolling data table paired with a second, narrow
+   table holding row actions that never scrolls — see TableWithActions.
+   This keeps actions reachable without scrolling through the wide table,
+   more reliably than a "sticky" column inside one scrolling table (which
+   has known quirks combined with border-collapse). */
+.table-with-actions {
+  display: flex;
+  align-items: flex-start;
 }
 
-.data-table th.sticky-col {
-  background-color: var(--color-carbon-black);
+.table-with-actions .table-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.data-table.scroll-part {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.data-table.actions-part {
+  flex: 0 0 auto;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  white-space: nowrap;
 }
 
 /* Printable labels */
