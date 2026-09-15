@@ -126,7 +126,7 @@ export default function ProductAdmin() {
                   <button className="btn-secondary" onClick={() => startEdit(product)}>
                     Edit
                   </button>
-                  <button className="btn-secondary" onClick={() => toggleProductActive(product.id)}>
+                  <button className="btn-secondary" onClick={() => toggleProductActive(product.id, product.active)}>
                     {product.active ? 'Deactivate' : 'Activate'}
                   </button>
                 </td>

@@ -1,19 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
 import { siteName } from './sites.js'
+import { supabase } from '../lib/supabaseClient.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { toCamelCase, toSnakeCase } from '../lib/caseConvert.js'
 
 const STORAGE_KEY = 'ims_app_data'
-const LEGACY_PRODUCTS_KEY = 'ims_products'
 const MAX_LOG_ENTRIES = 300
 
 const AppDataContext = createContext(null)
 
+// products now lives in Supabase (see useEffect below) — kept out of the
+// localStorage blob entirely, loaded fresh from the server every time.
 const defaultState = {
   products: [],
+  productsLoaded: false,
   inventoryItems: [],
   orders: [],
   bundles: [],
-  users: [],
-  totalSeats: 25,
   tickets: [],
   activityLog: [],
   companyAssumptions: {
@@ -29,22 +32,13 @@ function loadInitialState() {
     const raw = localStorage.getItem(STORAGE_KEY)
     // Merge over defaults so fields added after a browser's save (e.g. from an
     // earlier version of the app) don't come back as undefined and crash.
-    if (raw) return { ...defaultState, ...JSON.parse(raw) }
+    // products always starts fresh — see the Supabase load effect.
+    if (raw) return { ...defaultState, ...JSON.parse(raw), products: [], productsLoaded: false }
   } catch {
     // ignore corrupt storage
   }
 
-  let seedProducts = []
-  try {
-    const legacyRaw = localStorage.getItem(LEGACY_PRODUCTS_KEY)
-    if (legacyRaw) {
-      seedProducts = JSON.parse(legacyRaw).map((product) => ({ active: true, ...product }))
-    }
-  } catch {
-    // ignore corrupt legacy storage
-  }
-
-  return { ...defaultState, products: seedProducts }
+  return defaultState
 }
 
 // Appends one entry to the activity log, capped to the most recent
@@ -58,6 +52,9 @@ function logActivity(activityLog, { type, description, siteIds = [] }) {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'LOAD_PRODUCTS':
+      return { ...state, products: action.products, productsLoaded: true }
+
     case 'ADD_PRODUCT':
       return {
         ...state,
@@ -247,32 +244,6 @@ function reducer(state, action) {
       }
     }
 
-    case 'ADD_USER':
-      return {
-        ...state,
-        users: [...state.users, action.user],
-        activityLog: logActivity(state.activityLog, {
-          type: 'user',
-          description: `Added user ${action.user.name} (${action.user.email})`,
-        }),
-      }
-
-    case 'TOGGLE_USER_ACTIVE': {
-      const user = state.users.find((item) => item.id === action.id)
-      return {
-        ...state,
-        users: state.users.map((item) =>
-          item.id === action.id ? { ...item, status: item.status === 'active' ? 'inactive' : 'active' } : item,
-        ),
-        activityLog: user
-          ? logActivity(state.activityLog, {
-              type: 'user',
-              description: `${user.status === 'active' ? 'Deactivated' : 'Activated'} user ${user.name}`,
-            })
-          : state.activityLog,
-      }
-    }
-
     case 'ADD_TICKET':
       return {
         ...state,
@@ -292,29 +263,82 @@ function reducer(state, action) {
 }
 
 export function AppDataProvider({ children }) {
+  const { organization } = useAuth()
   const [state, dispatch] = useReducer(reducer, undefined, loadInitialState)
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      // products is excluded — it lives in Supabase, not this blob.
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, products: undefined, productsLoaded: undefined }))
     } catch {
       // localStorage unavailable — data just won't persist
     }
   }, [state])
 
+  useEffect(() => {
+    if (!organization) return
+    let active = true
+
+    supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) {
+          console.error('Failed to load products:', error.message)
+          return
+        }
+        dispatch({ type: 'LOAD_PRODUCTS', products: (data ?? []).map(toCamelCase) })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [organization])
+
   const actions = useMemo(
     () => ({
       addProduct(product) {
-        dispatch({ type: 'ADD_PRODUCT', product: { id: crypto.randomUUID(), active: true, ...product } })
+        const newProduct = { id: crypto.randomUUID(), active: true, ...product }
+        dispatch({ type: 'ADD_PRODUCT', product: newProduct })
+        if (!organization) return
+        supabase
+          .from('products')
+          .insert(toSnakeCase({ ...newProduct, organizationId: organization.id }))
+          .then(({ error }) => {
+            if (error) console.error('Failed to save new product:', error.message)
+          })
       },
       updateProduct(id, updates) {
         dispatch({ type: 'UPDATE_PRODUCT', id, updates })
+        supabase
+          .from('products')
+          .update(toSnakeCase(updates))
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to update product:', error.message)
+          })
       },
-      toggleProductActive(id) {
+      toggleProductActive(id, currentlyActive) {
         dispatch({ type: 'TOGGLE_PRODUCT_ACTIVE', id })
+        supabase
+          .from('products')
+          .update({ active: !currentlyActive })
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to update product status:', error.message)
+          })
       },
       setDepreciationModel(id, model) {
         dispatch({ type: 'SET_DEPRECIATION_MODEL', id, model })
+        supabase
+          .from('products')
+          .update({ depreciation_model: model })
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to save depreciation model:', error.message)
+          })
       },
       addOrder(order) {
         const id = crypto.randomUUID()
@@ -344,12 +368,6 @@ export function AppDataProvider({ children }) {
       breakBundle(id) {
         dispatch({ type: 'BREAK_BUNDLE', id })
       },
-      addUser(user) {
-        dispatch({ type: 'ADD_USER', user: { id: crypto.randomUUID(), status: 'active', ...user } })
-      },
-      toggleUserActive(id) {
-        dispatch({ type: 'TOGGLE_USER_ACTIVE', id })
-      },
       addTicket(ticket) {
         dispatch({
           type: 'ADD_TICKET',
@@ -360,7 +378,7 @@ export function AppDataProvider({ children }) {
         dispatch({ type: 'SET_COMPANY_ASSUMPTIONS', updates })
       },
     }),
-    [],
+    [organization],
   )
 
   const value = useMemo(() => ({ ...state, ...actions }), [state, actions])

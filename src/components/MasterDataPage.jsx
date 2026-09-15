@@ -165,7 +165,7 @@ function displayValue(field, value) {
 }
 
 export default function MasterDataPage({ title, storageKey, fields }) {
-  const { items, addItem, removeItem, updateItem } = useCollection(storageKey)
+  const { items, addItem, removeItem, updateItem, loaded } = useCollection(storageKey)
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState(() => emptyRecord(fields))
   const [editingId, setEditingId] = useState(null)
@@ -241,7 +241,9 @@ export default function MasterDataPage({ title, storageKey, fields }) {
         </form>
       )}
 
-      {items.length === 0 ? (
+      {!loaded ? (
+        <p className="empty-state">Loading…</p>
+      ) : items.length === 0 ? (
         <p className="empty-state">No records yet. Click "+ Add New" to create the first one.</p>
       ) : (
         <table className="data-table">

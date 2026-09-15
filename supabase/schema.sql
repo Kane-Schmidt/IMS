@@ -269,6 +269,16 @@ drop policy if exists "users can update own profile" on profiles;
 create policy "users can update own profile" on profiles
   for update using (id = auth.uid());
 
+-- Admins can also update any profile in their own organization (role,
+-- status). Multiple permissive policies on the same table combine with OR,
+-- so this adds admin capability without removing the self-update policy.
+drop policy if exists "admins can update org profiles" on profiles;
+create policy "admins can update org profiles" on profiles
+  for update using (
+    organization_id = auth_organization_id()
+    and exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
+  );
+
 -- Every remaining table follows the same simple pattern: full access,
 -- scoped to the caller's organization. (Per-role restrictions, e.g.
 -- read-only users, come in a later phase.)

@@ -1,32 +1,64 @@
-import { useState } from 'react'
-import { useAppData } from '../data/AppDataContext.jsx'
+import { useEffect, useState } from 'react'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 import { APP_VERSION, INSTALLED_AT, LAST_UPDATED_AT, SUPPORT_EMAIL } from '../data/appInfo.js'
 import Modal from '../components/Modal.jsx'
 
-const emptyDraft = { name: '', email: '', role: 'Standard' }
-const ROLES = ['Admin', 'Standard', 'Read-only']
+const ROLES = ['admin', 'standard', 'read-only']
 const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flexible']
 const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
 
 export default function Admin() {
-  const { users, addUser, toggleUserActive, totalSeats } = useAppData()
-  const [showForm, setShowForm] = useState(false)
-  const [draft, setDraft] = useState(emptyDraft)
+  const { organization, profile: myProfile } = useAuth()
+  const [members, setMembers] = useState([])
+  const [loaded, setLoaded] = useState(false)
   const [showSeatRequest, setShowSeatRequest] = useState(false)
   const [message, setMessage] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  const seatsUsed = users.filter((user) => user.status === 'active').length
+  useEffect(() => {
+    if (!organization) return
+    let active = true
+    setLoaded(false)
+
+    supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) {
+          console.error('Failed to load organization members:', error.message)
+        } else {
+          setMembers(data ?? [])
+        }
+        setLoaded(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [organization])
+
+  const seatsUsed = members.filter((member) => member.status === 'active').length
+  const totalSeats = organization?.seat_limit ?? 0
   const seatsAvailable = Math.max(totalSeats - seatsUsed, 0)
+  const canManageMembers = myProfile?.role === 'admin'
 
-  function updateField(key, value) {
-    setDraft((prev) => ({ ...prev, [key]: value }))
+  async function updateMember(id, updates) {
+    setMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updates } : member)))
+    const { error } = await supabase.from('profiles').update(updates).eq('id', id)
+    if (error) console.error('Failed to update member:', error.message)
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    addUser(draft)
-    setDraft(emptyDraft)
-    setShowForm(false)
+  async function copyInviteCode() {
+    try {
+      await navigator.clipboard.writeText(organization.invite_code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard access denied — the code is still visible to copy manually
+    }
   }
 
   function handleSeatRequestSubmit(request) {
@@ -82,58 +114,18 @@ export default function Admin() {
 
       <div className="page-header">
         <h2>User Management</h2>
-        {!showForm && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
-            + Add User
-          </button>
-        )}
       </div>
 
-      {showForm && (
-        <form className="record-form" onSubmit={handleSubmit}>
-          <label className="form-field">
-            <span>Name</span>
-            <input type="text" value={draft.name} onChange={(event) => updateField('name', event.target.value)} required />
-          </label>
-          <label className="form-field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={draft.email}
-              onChange={(event) => updateField('email', event.target.value)}
-              required
-            />
-          </label>
-          <label className="form-field">
-            <span>Role</span>
-            <select value={draft.role} onChange={(event) => updateField('role', event.target.value)}>
-              {ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-actions">
-            <button type="submit" className="btn-primary">
-              Save
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setDraft(emptyDraft)
-                setShowForm(false)
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+      <p className="page-subtitle">
+        Invite Code: <strong>{organization?.invite_code}</strong> — share it so a teammate can join under Sign Up →
+        Join a Company.{' '}
+        <button type="button" className="btn-secondary" onClick={copyInviteCode}>
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </p>
 
-      {users.length === 0 ? (
-        <p className="empty-state">No users yet. Click "+ Add User" to create the first one.</p>
+      {!loaded ? (
+        <p className="empty-state">Loading…</p>
       ) : (
         <table className="data-table">
           <thead>
@@ -142,25 +134,42 @@ export default function Admin() {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
-              <th></th>
+              {canManageMembers && <th></th>}
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.role}</td>
+            {members.map((member) => (
+              <tr key={member.id}>
+                <td>{member.name || '—'}</td>
+                <td>{member.email}</td>
                 <td>
-                  <span className={`status-pill ${user.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                    {user.status === 'active' ? 'Active' : 'Inactive'}
+                  {canManageMembers ? (
+                    <select value={member.role} onChange={(event) => updateMember(member.id, { role: event.target.value })}>
+                      {ROLES.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    member.role
+                  )}
+                </td>
+                <td>
+                  <span className={`status-pill ${member.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                    {member.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td>
-                  <button className="btn-secondary" onClick={() => toggleUserActive(user.id)}>
-                    {user.status === 'active' ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
+                {canManageMembers && (
+                  <td>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
+                    >
+                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

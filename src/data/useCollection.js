@@ -1,34 +1,84 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabaseClient.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { toCamelCase, toSnakeCase } from '../lib/caseConvert.js'
 
+function tableFor(storageKey) {
+  return storageKey.replace(/^ims_/, '')
+}
+
+// Employee/Location/Vehicle Master Data all go through this one hook.
+// Reads are scoped to the caller's organization automatically by Row-Level
+// Security; writes include organization_id explicitly since RLS requires it
+// to match on insert. Updates are optimistic (local state changes
+// immediately) with the Supabase write happening in the background, so the
+// UI feels the same as the old localStorage-backed version.
 export function useCollection(storageKey) {
-  const [items, setItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem(storageKey)
-      return raw ? JSON.parse(raw) : []
-    } catch {
-      return []
-    }
-  })
+  const table = tableFor(storageKey)
+  const { organization } = useAuth()
+  const [items, setItems] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(items))
-    } catch {
-      // localStorage unavailable (e.g. private browsing) — data just won't persist
+    let active = true
+    setLoaded(false)
+
+    supabase
+      .from(table)
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) {
+          console.error(`Failed to load ${table}:`, error.message)
+          setItems([])
+        } else {
+          setItems((data ?? []).map(toCamelCase))
+        }
+        setLoaded(true)
+      })
+
+    return () => {
+      active = false
     }
-  }, [storageKey, items])
+  }, [table])
 
   function addItem(record) {
-    setItems((prev) => [...prev, { id: crypto.randomUUID(), ...record }])
+    if (!organization) return
+    const newItem = { id: crypto.randomUUID(), ...record }
+    setItems((prev) => [...prev, newItem])
+
+    supabase
+      .from(table)
+      .insert(toSnakeCase({ ...newItem, organizationId: organization.id }))
+      .then(({ error }) => {
+        if (error) console.error(`Failed to save new ${table} record:`, error.message)
+      })
   }
 
   function removeItem(id) {
     setItems((prev) => prev.filter((item) => item.id !== id))
+
+    supabase
+      .from(table)
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error(`Failed to delete ${table} record:`, error.message)
+      })
   }
 
   function updateItem(id, updates) {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)))
+
+    supabase
+      .from(table)
+      .update(toSnakeCase(updates))
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error(`Failed to update ${table} record:`, error.message)
+      })
   }
 
-  return { items, addItem, removeItem, updateItem }
+  return { items, addItem, removeItem, updateItem, loaded }
 }
