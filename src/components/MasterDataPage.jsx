@@ -119,7 +119,7 @@ function StorageLocationsEditor({ value, onChange }) {
   )
 }
 
-function FieldInput({ field, value, onChange }) {
+function FieldInput({ field, value, onChange, linkedItems }) {
   if (field.type === 'checkbox') {
     return <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
   }
@@ -133,6 +133,21 @@ function FieldInput({ field, value, onChange }) {
         {field.options.map((option) => (
           <option key={option} value={option}>
             {option}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
+  if (field.type === 'recordSelect') {
+    return (
+      <select value={value} onChange={(event) => onChange(event.target.value)} required={field.required !== false}>
+        <option value="" disabled={field.required !== false}>
+          {field.required === false ? 'None' : `Select ${field.label}`}
+        </option>
+        {linkedItems.map((item) => (
+          <option key={item.id} value={item.id}>
+            {field.optionLabel(item)}
           </option>
         ))}
       </select>
@@ -153,10 +168,15 @@ function FieldInput({ field, value, onChange }) {
   )
 }
 
-function displayValue(field, value) {
+function displayValue(field, value, linkedItems) {
   if (field.type === 'checkbox') return value ? 'Yes' : 'No'
   if (field.type === 'storageLocations') {
     return `${value.length} location${value.length === 1 ? '' : 's'}`
+  }
+  if (field.type === 'recordSelect') {
+    if (!value) return '—'
+    const match = linkedItems.find((item) => item.id === value)
+    return match ? field.optionLabel(match) : '—'
   }
   if (field.type === 'number' && field.currency) {
     return value === '' ? '' : `$${Number(value).toLocaleString()}`
@@ -166,6 +186,11 @@ function displayValue(field, value) {
 
 export default function MasterDataPage({ title, storageKey, fields }) {
   const { items, addItem, removeItem, updateItem, loaded } = useCollection(storageKey)
+  // At most one field per master data page links to another collection
+  // (e.g. Network Equipment linking to Cabinets) — loaded unconditionally so
+  // hook order stays stable regardless of which fields config is passed in.
+  const linkedField = fields.find((field) => field.type === 'recordSelect')
+  const { items: linkedItems } = useCollection(linkedField?.storageKey)
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState(() => emptyRecord(fields))
   const [editingId, setEditingId] = useState(null)
@@ -230,7 +255,12 @@ export default function MasterDataPage({ title, storageKey, fields }) {
             return (
               <Wrapper key={field.key} className={`form-field${isComposite ? ' form-field-wide' : ''}`}>
                 <span>{field.label}</span>
-                <FieldInput field={field} value={draft[field.key]} onChange={(value) => updateField(field.key, value)} />
+                <FieldInput
+                  field={field}
+                  value={draft[field.key]}
+                  onChange={(value) => updateField(field.key, value)}
+                  linkedItems={linkedItems}
+                />
               </Wrapper>
             )
           })}
@@ -263,7 +293,7 @@ export default function MasterDataPage({ title, storageKey, fields }) {
             {items.map((item) => (
               <tr key={item.id}>
                 {fields.map((field) => (
-                  <td key={field.key}>{displayValue(field, item[field.key])}</td>
+                  <td key={field.key}>{displayValue(field, item[field.key], linkedItems)}</td>
                 ))}
                 <td className="row-actions">
                   <button className="btn-secondary" onClick={() => startEdit(item)}>

@@ -76,6 +76,44 @@ export const officeFields = [
   { key: 'zipCode', label: 'Zip Code', type: 'text' },
 ]
 
+export const cabinetFields = [
+  { key: 'cabinetName', label: 'Cabinet Name / ID', type: 'text' },
+  {
+    key: 'cabinetType',
+    label: 'Cabinet Type',
+    type: 'select',
+    options: ['Street Cabinet', 'Pedestal', 'Hut', 'Central Office', 'Data Center Rack', 'NID Enclosure'],
+  },
+  { key: 'street', label: 'Street', type: 'text' },
+  { key: 'city', label: 'City', type: 'text' },
+  { key: 'state', label: 'State', type: 'select', options: US_STATES },
+  { key: 'unitNumber', label: 'Unit Number', type: 'text', required: false },
+  { key: 'zipCode', label: 'Zip Code', type: 'text' },
+  { key: 'capacity', label: 'Capacity (Rack Units)', type: 'number', required: false },
+]
+
+export const networkEquipmentFields = [
+  { key: 'equipmentName', label: 'Equipment Name / ID', type: 'text' },
+  {
+    key: 'equipmentType',
+    label: 'Equipment Type',
+    type: 'select',
+    options: ['OLT', 'Router', 'Switch', 'Rectifier', 'UPS / Battery Bank', 'Splitter', 'Media Converter', 'ONT', 'Other'],
+  },
+  { key: 'manufacturer', label: 'Manufacturer', type: 'text' },
+  { key: 'model', label: 'Model', type: 'text' },
+  { key: 'serialNumber', label: 'Serial Number', type: 'text' },
+  {
+    key: 'cabinetId',
+    label: 'Cabinet',
+    type: 'recordSelect',
+    storageKey: 'ims_cabinets',
+    optionLabel: (item) => item.cabinetName,
+    required: false,
+  },
+  { key: 'inServiceDate', label: 'In-Service Date', type: 'date', required: false },
+]
+
 export const vehicleFields = [
   { key: 'vehicleNumber', label: 'Vehicle Number', type: 'text' },
   { key: 'manufacturer', label: 'Manufacturer', type: 'text' },

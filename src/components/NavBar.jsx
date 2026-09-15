@@ -6,6 +6,8 @@ const masterDataLinks = [
   { to: '/master-data/products', label: 'Product Master Data' },
   { to: '/master-data/locations', label: 'Location Master Data' },
   { to: '/master-data/offices', label: 'Office Master Data' },
+  { to: '/master-data/cabinets', label: 'Cabinet Master Data' },
+  { to: '/master-data/network-equipment', label: 'Network Equipment Master Data' },
   { to: '/master-data/vehicles', label: 'Vehicle Master Data' },
 ]
 

@@ -4,10 +4,12 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { toCamelCase, toSnakeCase } from '../lib/caseConvert.js'
 
 function tableFor(storageKey) {
-  return storageKey.replace(/^ims_/, '')
+  return storageKey ? storageKey.replace(/^ims_/, '') : null
 }
 
-// Location/Vehicle Master Data all go through this one hook.
+// Location/Vehicle Master Data all go through this one hook. storageKey may
+// be omitted (e.g. a field that optionally links to another collection) —
+// in that case this is a no-op that reports itself as already loaded.
 // Reads are scoped to the caller's organization automatically by Row-Level
 // Security; writes include organization_id explicitly since RLS requires it
 // to match on insert. Updates are optimistic (local state changes
@@ -17,9 +19,10 @@ export function useCollection(storageKey) {
   const table = tableFor(storageKey)
   const { organization } = useAuth()
   const [items, setItems] = useState([])
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(!table)
 
   useEffect(() => {
+    if (!table) return
     let active = true
     setLoaded(false)
 
@@ -44,7 +47,7 @@ export function useCollection(storageKey) {
   }, [table])
 
   function addItem(record) {
-    if (!organization) return
+    if (!organization || !table) return
     const newItem = { id: crypto.randomUUID(), ...record }
     setItems((prev) => [...prev, newItem])
 
@@ -57,6 +60,7 @@ export function useCollection(storageKey) {
   }
 
   function removeItem(id) {
+    if (!table) return
     setItems((prev) => prev.filter((item) => item.id !== id))
 
     supabase
@@ -69,6 +73,7 @@ export function useCollection(storageKey) {
   }
 
   function updateItem(id, updates) {
+    if (!table) return
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)))
 
     supabase
