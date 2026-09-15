@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { AppDataProvider } from './data/AppDataContext.jsx'
 import NavBar from './components/NavBar.jsx'
+import AuthScreen from './pages/auth/AuthScreen.jsx'
+import OrganizationSetup from './pages/auth/OrganizationSetup.jsx'
 import Home from './pages/Home.jsx'
 import PlaceOrder from './pages/PlaceOrder.jsx'
 import ReceiveOrder from './pages/ReceiveOrder.jsx'
@@ -16,7 +19,25 @@ import EmployeeMasterData from './pages/masterdata/EmployeeMasterData.jsx'
 import LocationMasterData from './pages/masterdata/LocationMasterData.jsx'
 import VehicleMasterData from './pages/masterdata/VehicleMasterData.jsx'
 
-function App() {
+function AuthGate() {
+  const { loading, user, profile } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <p className="empty-state">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthScreen />
+  }
+
+  if (!profile) {
+    return <OrganizationSetup />
+  }
+
   return (
     <AppDataProvider>
       <BrowserRouter>
@@ -41,6 +62,14 @@ function App() {
         </div>
       </BrowserRouter>
     </AppDataProvider>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   )
 }
 

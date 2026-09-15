@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext.jsx'
 
 const masterDataLinks = [
   { to: '/master-data/products', label: 'Product Master Data' },
@@ -22,6 +23,8 @@ function navLinkClass({ isActive }) {
 
 export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const { user, organization, signOut } = useAuth()
 
   return (
     <nav className="navbar">
@@ -56,6 +59,33 @@ export default function NavBar() {
           </li>
         ))}
       </ul>
+
+      <div
+        className="navbar-dropdown navbar-account"
+        onMouseEnter={() => setAccountOpen(true)}
+        onMouseLeave={() => setAccountOpen(false)}
+      >
+        <button type="button" className="navbar-dropdown-toggle" onClick={() => setAccountOpen((open) => !open)}>
+          {organization?.name ?? 'Account'}
+        </button>
+        {accountOpen && (
+          <div className="navbar-account-menu">
+            <div className="navbar-account-row">
+              <span className="navbar-account-label">Signed in as</span>
+              <span>{user?.email}</span>
+            </div>
+            {organization && (
+              <div className="navbar-account-row">
+                <span className="navbar-account-label">Invite Code</span>
+                <span>{organization.invite_code}</span>
+              </div>
+            )}
+            <button type="button" className="btn-secondary navbar-signout" onClick={signOut}>
+              Sign Out
+            </button>
+          </div>
+        )}
+      </div>
     </nav>
   )
 }

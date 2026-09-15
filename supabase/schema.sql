@@ -64,6 +64,41 @@ $$;
 
 grant execute on function create_organization(text) to authenticated;
 
+-- Invite codes let an admin bring teammates into their existing
+-- organization instead of every signup creating a new one.
+alter table organizations add column if not exists invite_code text;
+update organizations set invite_code = substr(md5(random()::text || id::text), 1, 8) where invite_code is null;
+alter table organizations alter column invite_code set default substr(md5(random()::text), 1, 8);
+create unique index if not exists organizations_invite_code_key on organizations (invite_code);
+
+create or replace function join_organization(code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_org_id uuid;
+begin
+  if auth_organization_id() is not null then
+    raise exception 'This account already belongs to an organization.';
+  end if;
+
+  select id into target_org_id from organizations where invite_code = code;
+
+  if target_org_id is null then
+    raise exception 'Invalid invite code.';
+  end if;
+
+  insert into profiles (id, organization_id, name, email, role, status)
+  values (auth.uid(), target_org_id, coalesce(auth.jwt() ->> 'name', ''), coalesce(auth.jwt() ->> 'email', ''), 'standard', 'active');
+
+  return target_org_id;
+end;
+$$;
+
+grant execute on function join_organization(text) to authenticated;
+
 -- ─────────────────────────────────────────────────────────────────────────
 -- Master data
 -- ─────────────────────────────────────────────────────────────────────────
