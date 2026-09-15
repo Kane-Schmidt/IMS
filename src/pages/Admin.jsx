@@ -10,10 +10,10 @@ const ROLES = ['admin', 'standard', 'read-only']
 const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flexible']
 const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
 
-function locationLabel(locations, id) {
+function officeLabel(offices, id) {
   if (!id) return '—'
-  const location = locations.find((entry) => entry.id === id)
-  return location?.locationName ?? '—'
+  const office = offices.find((entry) => entry.id === id)
+  return office?.officeName ?? '—'
 }
 
 function memberLabel(member) {
@@ -25,7 +25,7 @@ export default function Admin() {
   const { organization, profile: myProfile, refreshProfile } = useAuth()
   const { warehouses } = useWarehouses()
   const { items: vehicles } = useCollection('ims_vehicles')
-  const { items: locations } = useCollection('ims_locations')
+  const { items: offices } = useCollection('ims_offices')
   const [members, setMembers] = useState([])
   const [invites, setInvites] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -260,7 +260,7 @@ export default function Admin() {
                       {member.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>{locationLabel(locations, member.home_office_location_id)}</td>
+                  <td>{officeLabel(offices, member.home_office_id)}</td>
                   <td>{member.is_receiver ? 'Yes' : 'No'}</td>
                   {canManageMembers && (
                     <td className="row-actions">
@@ -320,7 +320,7 @@ export default function Admin() {
                       <td>{invite.first_name || '—'}</td>
                       <td>{invite.last_name || '—'}</td>
                       <td>{invite.role}</td>
-                      <td>{locationLabel(locations, invite.home_office_location_id)}</td>
+                      <td>{officeLabel(offices, invite.home_office_id)}</td>
                       <td>{invite.is_receiver ? 'Yes' : 'No'}</td>
                       <td className="row-actions">
                         <button className="btn-secondary" onClick={() => sendInviteEmail(invite)}>
@@ -348,7 +348,7 @@ export default function Admin() {
           member={editingMember}
           warehouses={warehouses}
           vehicles={vehicles}
-          locations={locations}
+          offices={offices}
           members={members}
           error={error}
           onSave={async (updates) => {
@@ -364,7 +364,7 @@ export default function Admin() {
           member={viewingMember}
           warehouses={warehouses}
           vehicles={vehicles}
-          locations={locations}
+          offices={offices}
           members={members}
           readOnly
           onClose={() => setViewingMember(null)}
@@ -375,7 +375,7 @@ export default function Admin() {
         <InviteMemberModal
           warehouses={warehouses}
           vehicles={vehicles}
-          locations={locations}
+          offices={offices}
           members={members}
           invites={invites}
           error={error}
@@ -413,7 +413,7 @@ function MemberFieldset({
   vehicleHolder,
   warehouses,
   vehicles,
-  locations,
+  offices,
   readOnly = false,
 }) {
   return (
@@ -439,9 +439,9 @@ function MemberFieldset({
         <span>Home Office</span>
         <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)} disabled={readOnly}>
           <option value="">None</option>
-          {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.locationName}
+          {offices.map((office) => (
+            <option key={office.id} value={office.id}>
+              {office.officeName}
             </option>
           ))}
         </select>
@@ -513,11 +513,11 @@ function MemberFieldset({
   )
 }
 
-function MemberModal({ member, warehouses, vehicles, locations, members, error, readOnly = false, onSave, onClose }) {
+function MemberModal({ member, warehouses, vehicles, offices, members, error, readOnly = false, onSave, onClose }) {
   const [firstName, setFirstName] = useState(member.first_name ?? '')
   const [lastName, setLastName] = useState(member.last_name ?? '')
   const [dateOfHire, setDateOfHire] = useState(member.date_of_hire ?? '')
-  const [homeOfficeId, setHomeOfficeId] = useState(member.home_office_location_id ?? '')
+  const [homeOfficeId, setHomeOfficeId] = useState(member.home_office_id ?? '')
   const [role, setRole] = useState(member.role)
   const [isReceiver, setIsReceiver] = useState(member.is_receiver ?? false)
   const [assigned, setAssigned] = useState(member.assigned_warehouses ?? [])
@@ -540,7 +540,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, error, 
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       date_of_hire: dateOfHire || null,
-      home_office_location_id: homeOfficeId || null,
+      home_office_id: homeOfficeId || null,
       role,
       is_receiver: isReceiver,
       assigned_warehouses: assigned,
@@ -572,7 +572,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, error, 
           vehicleHolder={vehicleHolder}
           warehouses={warehouses}
           vehicles={vehicles}
-          locations={locations}
+          offices={offices}
           readOnly={readOnly}
         />
         <div className="form-actions">
@@ -596,7 +596,7 @@ function MemberModal({ member, warehouses, vehicles, locations, members, error, 
   )
 }
 
-function InviteMemberModal({ warehouses, vehicles, locations, members, invites, error, onSave, onClose }) {
+function InviteMemberModal({ warehouses, vehicles, offices, members, invites, error, onSave, onClose }) {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -626,7 +626,7 @@ function InviteMemberModal({ warehouses, vehicles, locations, members, invites, 
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       date_of_hire: dateOfHire || null,
-      home_office_location_id: homeOfficeId || null,
+      home_office_id: homeOfficeId || null,
       role,
       is_receiver: isReceiver,
       assigned_warehouses: assigned,
@@ -662,7 +662,7 @@ function InviteMemberModal({ warehouses, vehicles, locations, members, invites, 
           vehicleHolder={vehicleHolder}
           warehouses={warehouses}
           vehicles={vehicles}
-          locations={locations}
+          offices={offices}
         />
         <p className="chart-card-note form-field-wide">
           This creates the invite and opens your email app with a message ready to send — it doesn't send

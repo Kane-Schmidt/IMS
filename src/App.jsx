@@ -16,6 +16,7 @@ import Admin from './pages/Admin.jsx'
 import Support from './pages/Support.jsx'
 import ProductMasterData from './pages/masterdata/ProductMasterData.jsx'
 import LocationMasterData from './pages/masterdata/LocationMasterData.jsx'
+import OfficeMasterData from './pages/masterdata/OfficeMasterData.jsx'
 import VehicleMasterData from './pages/masterdata/VehicleMasterData.jsx'
 import StockByWarehouse from './pages/StockByWarehouse.jsx'
 
@@ -57,6 +58,7 @@ function AuthGate() {
             <Route path="/support" element={<Support />} />
             <Route path="/master-data/products" element={<ProductMasterData />} />
             <Route path="/master-data/locations" element={<LocationMasterData />} />
+            <Route path="/master-data/offices" element={<OfficeMasterData />} />
             <Route path="/master-data/vehicles" element={<VehicleMasterData />} />
           </Routes>
         </div>

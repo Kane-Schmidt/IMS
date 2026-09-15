@@ -57,7 +57,7 @@ export const locationFields = [
     key: 'locationType',
     label: 'Location Type',
     type: 'select',
-    options: ['Warehouse', 'Office', 'Storage Facility', 'Distribution Center', 'Retail Store'],
+    options: ['Warehouse', 'Storage Facility', 'Distribution Center', 'Retail Store'],
   },
   { key: 'street', label: 'Street', type: 'text' },
   { key: 'city', label: 'City', type: 'text' },
@@ -65,6 +65,15 @@ export const locationFields = [
   { key: 'unitNumber', label: 'Unit Number', type: 'text', required: false },
   { key: 'zipCode', label: 'Zip Code', type: 'text' },
   { key: 'storageLocations', label: 'Storage Locations', type: 'storageLocations' },
+]
+
+export const officeFields = [
+  { key: 'officeName', label: 'Office Name', type: 'text' },
+  { key: 'street', label: 'Street', type: 'text' },
+  { key: 'city', label: 'City', type: 'text' },
+  { key: 'state', label: 'State', type: 'select', options: US_STATES },
+  { key: 'unitNumber', label: 'Unit Number', type: 'text', required: false },
+  { key: 'zipCode', label: 'Zip Code', type: 'text' },
 ]
 
 export const vehicleFields = [
