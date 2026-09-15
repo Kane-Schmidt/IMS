@@ -1,13 +1,48 @@
+import { lazy, Suspense, useState } from 'react'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { useCollection } from '../data/useCollection.js'
 import { WAREHOUSES } from '../data/sites.js'
 import { computeProductFleetTotals, computeVehicleFleetTotals } from '../data/depreciation.js'
 import { currency } from '../components/FleetDepreciationSummary.jsx'
 
+// recharts pulls in a lot of weight — only load it once someone actually
+// opens this tab, instead of bloating every page's initial bundle.
+const ExecutiveDashboard = lazy(() => import('./ExecutiveDashboard.jsx'))
+
 const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.4375
 const RECENT_ACTIVITY_LIMIT = 100
+const TABS = ['Summary', 'Executive Dashboard']
 
 export default function Reports() {
+  const [activeTab, setActiveTab] = useState('Summary')
+
+  return (
+    <div className="reports-page">
+      <h1>Reports</h1>
+
+      <div className="tab-bar">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            className={`tab-button${activeTab === tab ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'Summary' && <ReportsSummary />}
+      {activeTab === 'Executive Dashboard' && (
+        <Suspense fallback={<p className="empty-state">Loading dashboard…</p>}>
+          <ExecutiveDashboard />
+        </Suspense>
+      )}
+    </div>
+  )
+}
+
+function ReportsSummary() {
   const { products, inventoryItems, orders, activityLog } = useAppData()
   const { items: vehicles } = useCollection('ims_vehicles')
 
@@ -55,9 +90,7 @@ export default function Reports() {
   const recentActivity = [...activityLog].reverse().slice(0, RECENT_ACTIVITY_LIMIT)
 
   return (
-    <div className="reports-page">
-      <h1>Reports</h1>
-
+    <div className="reports-summary">
       <section className="finance-section">
         <h2>Fixed Asset Summary</h2>
         <p className="page-subtitle">Combined product inventory and vehicle fleet, at today's book value.</p>

@@ -16,6 +16,12 @@ const defaultState = {
   totalSeats: 25,
   tickets: [],
   activityLog: [],
+  companyAssumptions: {
+    monthlyRevenue: 0,
+    ebitdaMarginPct: 30,
+    ebitdaMultiple: 8,
+    subscribers: 0,
+  },
 }
 
 function loadInitialState() {
@@ -277,6 +283,9 @@ function reducer(state, action) {
         }),
       }
 
+    case 'SET_COMPANY_ASSUMPTIONS':
+      return { ...state, companyAssumptions: { ...state.companyAssumptions, ...action.updates } }
+
     default:
       return state
   }
@@ -346,6 +355,9 @@ export function AppDataProvider({ children }) {
           type: 'ADD_TICKET',
           ticket: { id: crypto.randomUUID(), status: 'open', submittedAt: new Date().toISOString(), ...ticket },
         })
+      },
+      setCompanyAssumptions(updates) {
+        dispatch({ type: 'SET_COMPANY_ASSUMPTIONS', updates })
       },
     }),
     [],
