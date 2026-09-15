@@ -1,16 +1,17 @@
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppData } from '../../data/AppDataContext.jsx'
-import { WAREHOUSES } from '../../data/sites.js'
+import { useWarehouses } from '../../data/useSites.js'
 import { depreciateAsset } from '../../data/depreciation.js'
 import { currency, compactCurrency, CHART_COLORS, chartTickStyle, chartAxisLine, chartTooltipStyle, chartLabelStyle, chartItemStyle } from '../../data/reportFormat.js'
 
 export default function InventoryByLocation() {
   const { products, inventoryItems } = useAppData()
+  const { warehouses } = useWarehouses()
 
   const locationRows = useMemo(
     () =>
-      WAREHOUSES.map((site) => {
+      warehouses.map((site) => {
         const items = inventoryItems.filter((item) => item.locationId === site.id)
         let grossValue = 0
         let netBookValue = 0
@@ -23,7 +24,7 @@ export default function InventoryByLocation() {
         })
         return { site, units: items.length, grossValue, netBookValue }
       }),
-    [inventoryItems, products],
+    [inventoryItems, products, warehouses],
   )
 
   const totalStockUnits = locationRows.reduce((sum, row) => sum + row.units, 0)
@@ -35,11 +36,11 @@ export default function InventoryByLocation() {
 
   return (
     <div>
-      <p className="page-subtitle">Product units and value currently on hand at each of the 9 warehouses.</p>
+      <p className="page-subtitle">Product units and value currently on hand at each warehouse.</p>
 
       <div className="kpi-strip">
         <div className="kpi-card">
-          <span className="kpi-value">{WAREHOUSES.length}</span>
+          <span className="kpi-value">{warehouses.length}</span>
           <span className="kpi-label">Warehouses</span>
         </div>
         <div className="kpi-card">

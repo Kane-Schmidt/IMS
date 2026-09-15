@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
-import { siteName } from './sites.js'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { toCamelCase, toSnakeCase } from '../lib/caseConvert.js'
@@ -186,7 +185,7 @@ function reducer(state, action) {
         ),
         activityLog: logActivity(state.activityLog, {
           type: 'receive',
-          description: `Received ${newItems.length} unit(s) for ${order ? order.poNumber : 'order'} into ${siteName(action.destinationLocationId)}`,
+          description: `Received ${newItems.length} unit(s) for ${order ? order.poNumber : 'order'} into ${action.destinationName}`,
           siteIds: [action.destinationLocationId],
         }),
       }
@@ -202,7 +201,7 @@ function reducer(state, action) {
         ),
         activityLog: logActivity(state.activityLog, {
           type: 'relocate',
-          description: `Moved ${movedItems.length} item(s) from ${sourceIds.map(siteName).join(', ')} to ${siteName(action.destinationLocationId)}`,
+          description: `Moved ${movedItems.length} item(s) from ${action.sourceName} to ${action.destinationName}`,
           siteIds: [...sourceIds, action.destinationLocationId],
         }),
       }
@@ -217,7 +216,7 @@ function reducer(state, action) {
         ),
         activityLog: logActivity(state.activityLog, {
           type: 'bundle',
-          description: `Created bundle "${action.bundle.name}" with ${action.bundle.itemIds.length} item(s) at ${siteName(action.bundle.warehouseLocationId)}`,
+          description: `Created bundle "${action.bundle.name}" with ${action.bundle.itemIds.length} item(s) at ${action.warehouseName}`,
           siteIds: [action.bundle.warehouseLocationId],
         }),
       }
@@ -351,17 +350,18 @@ export function AppDataProvider({ children }) {
       reviewOrder(id, decision, comment) {
         dispatch({ type: 'REVIEW_ORDER', id, decision, comment })
       },
-      receiveOrder({ orderId, destinationLocationId, scannedItems, palletBoxCount }) {
-        dispatch({ type: 'RECEIVE_ORDER', orderId, destinationLocationId, scannedItems, palletBoxCount })
+      receiveOrder({ orderId, destinationLocationId, destinationName, scannedItems, palletBoxCount }) {
+        dispatch({ type: 'RECEIVE_ORDER', orderId, destinationLocationId, destinationName, scannedItems, palletBoxCount })
       },
-      relocateItems(itemIds, destinationLocationId) {
-        dispatch({ type: 'RELOCATE_ITEMS', itemIds, destinationLocationId })
+      relocateItems(itemIds, destinationLocationId, { sourceName, destinationName }) {
+        dispatch({ type: 'RELOCATE_ITEMS', itemIds, destinationLocationId, sourceName, destinationName })
       },
-      createBundle(bundle) {
+      createBundle(bundle, warehouseName) {
         const id = crypto.randomUUID()
         dispatch({
           type: 'CREATE_BUNDLE',
           bundle: { id, status: 'active', createdAt: new Date().toISOString(), ...bundle },
+          warehouseName,
         })
         return id
       },

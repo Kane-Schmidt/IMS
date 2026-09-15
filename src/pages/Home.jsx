@@ -1,16 +1,15 @@
 import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
-import { TRUCKS, siteName } from '../data/sites.js'
-
-function isOnTruck(locationId) {
-  return TRUCKS.some((truck) => truck.id === locationId)
-}
+import { useSites } from '../data/useSites.js'
 
 export default function Home() {
   const { orders, inventoryItems, bundles, tickets } = useAppData()
+  const { vehicleSites, siteName } = useSites()
 
   const totalInStock = inventoryItems.length
-  const onTrucks = inventoryItems.filter((item) => isOnTruck(item.locationId)).length
+  const onTrucks = inventoryItems.filter((item) =>
+    vehicleSites.some((vehicle) => vehicle.id === item.locationId),
+  ).length
   const inWarehouses = totalInStock - onTrucks
   const bundledItems = inventoryItems.filter((item) => item.bundleId).length
 

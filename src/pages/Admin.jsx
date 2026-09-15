@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { useWarehouses } from '../data/useSites.js'
 import { APP_VERSION, INSTALLED_AT, LAST_UPDATED_AT, SUPPORT_EMAIL } from '../data/appInfo.js'
 import Modal from '../components/Modal.jsx'
 
@@ -9,10 +10,12 @@ const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flex
 const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
 
 export default function Admin() {
-  const { organization, profile: myProfile } = useAuth()
+  const { organization, profile: myProfile, refreshProfile } = useAuth()
+  const { warehouses } = useWarehouses()
   const [members, setMembers] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [showSeatRequest, setShowSeatRequest] = useState(false)
+  const [editingMember, setEditingMember] = useState(null)
   const [message, setMessage] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -48,7 +51,12 @@ export default function Admin() {
   async function updateMember(id, updates) {
     setMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updates } : member)))
     const { error } = await supabase.from('profiles').update(updates).eq('id', id)
-    if (error) console.error('Failed to update member:', error.message)
+    if (error) {
+      console.error('Failed to update member:', error.message)
+      return
+    }
+    // Keep the signed-in user's own permissions current if they edited themselves.
+    if (id === myProfile?.id) await refreshProfile()
   }
 
   async function copyInviteCode() {
@@ -134,6 +142,8 @@ export default function Admin() {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Receiver</th>
+              <th>Warehouses</th>
               {canManageMembers && <th></th>}
             </tr>
           </thead>
@@ -142,26 +152,19 @@ export default function Admin() {
               <tr key={member.id}>
                 <td>{member.name || '—'}</td>
                 <td>{member.email}</td>
-                <td>
-                  {canManageMembers ? (
-                    <select value={member.role} onChange={(event) => updateMember(member.id, { role: event.target.value })}>
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    member.role
-                  )}
-                </td>
+                <td>{member.role}</td>
                 <td>
                   <span className={`status-pill ${member.status === 'active' ? 'status-active' : 'status-inactive'}`}>
                     {member.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
                 </td>
+                <td>{member.is_receiver ? 'Yes' : 'No'}</td>
+                <td>{(member.assigned_warehouses ?? []).length}</td>
                 {canManageMembers && (
-                  <td>
+                  <td className="row-actions">
+                    <button className="btn-secondary" onClick={() => setEditingMember(member)}>
+                      Edit
+                    </button>
                     <button
                       className="btn-secondary"
                       onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
@@ -179,7 +182,92 @@ export default function Admin() {
       {showSeatRequest && (
         <RequestSeatsModal onSubmit={handleSeatRequestSubmit} onClose={() => setShowSeatRequest(false)} />
       )}
+
+      {editingMember && (
+        <MemberModal
+          member={editingMember}
+          warehouses={warehouses}
+          onSave={(updates) => {
+            updateMember(editingMember.id, updates)
+            setEditingMember(null)
+          }}
+          onClose={() => setEditingMember(null)}
+        />
+      )}
     </div>
+  )
+}
+
+function MemberModal({ member, warehouses, onSave, onClose }) {
+  const [role, setRole] = useState(member.role)
+  const [isReceiver, setIsReceiver] = useState(member.is_receiver ?? false)
+  const [assigned, setAssigned] = useState(member.assigned_warehouses ?? [])
+
+  function toggleWarehouse(id) {
+    setAssigned((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]))
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    onSave({ role, is_receiver: isReceiver, assigned_warehouses: assigned })
+  }
+
+  return (
+    <Modal title={member.email} onClose={onClose}>
+      <form className="record-form" onSubmit={handleSubmit}>
+        <label className="form-field">
+          <span>Role</span>
+          <select value={role} onChange={(event) => setRole(event.target.value)}>
+            {ROLES.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-field">
+          <span>Receiver</span>
+          <input type="checkbox" checked={isReceiver} onChange={(event) => setIsReceiver(event.target.checked)} />
+        </label>
+
+        <div className="form-field form-field-wide">
+          <span>Assigned Warehouses</span>
+          {warehouses.length === 0 ? (
+            <p className="empty-state">
+              No warehouses yet. Add a location with type Warehouse under Location Master Data first.
+            </p>
+          ) : (
+            <div className="warehouse-checklist">
+              {warehouses.map((warehouse) => (
+                <label key={warehouse.id} className="warehouse-checklist-option">
+                  <input
+                    type="checkbox"
+                    checked={assigned.includes(warehouse.id)}
+                    onChange={() => toggleWarehouse(warehouse.id)}
+                  />
+                  <span>{warehouse.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {isReceiver && assigned.length === 0 && (
+          <p className="chart-card-note form-field-wide">
+            A receiver with no assigned warehouses won't be able to receive anything.
+          </p>
+        )}
+
+        <div className="form-actions">
+          <button type="submit" className="btn-primary">
+            Save
+          </button>
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

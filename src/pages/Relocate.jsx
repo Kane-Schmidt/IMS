@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
-import { SITES, siteById } from '../data/sites.js'
+import { useSites } from '../data/useSites.js'
 
 export default function Relocate() {
   const { inventoryItems, products, relocateItems } = useAppData()
+  const { sites, siteById, loaded: sitesLoaded } = useSites()
   const [sourceId, setSourceId] = useState('')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
@@ -50,8 +51,7 @@ export default function Relocate() {
 
   function requestMove() {
     if (selectedIds.length === 0 || !destinationId) return
-    const destination = siteById(destinationId)
-    if (destination.type === 'truck') {
+    if (siteById(destinationId)?.type === 'vehicle') {
       setConfirmingSignOut(true)
     } else {
       performMove()
@@ -59,8 +59,10 @@ export default function Relocate() {
   }
 
   function performMove() {
-    relocateItems(selectedIds, destinationId)
-    setMessage(`Moved ${selectedIds.length} item(s) to ${siteById(destinationId).name}.`)
+    const sourceName = siteById(sourceId)?.name ?? 'Unknown location'
+    const destinationName = siteById(destinationId)?.name ?? 'Unknown location'
+    relocateItems(selectedIds, destinationId, { sourceName, destinationName })
+    setMessage(`Moved ${selectedIds.length} item(s) to ${destinationName}.`)
     setSelectedIds([])
     setConfirmingSignOut(false)
   }
@@ -72,18 +74,26 @@ export default function Relocate() {
       </Link>
       <h1>Relocate</h1>
 
-      <div className="site-grid">
-        {SITES.map((site) => (
-          <button
-            key={site.id}
-            className={`site-card${sourceId === site.id ? ' active' : ''}${site.type === 'truck' ? ' site-truck' : ''}`}
-            onClick={() => selectSource(site.id)}
-          >
-            <span className="site-name">{site.name}</span>
-            <span className="site-count">{countAt(site.id)} items</span>
-          </button>
-        ))}
-      </div>
+      {!sitesLoaded ? (
+        <p className="empty-state">Loading locations…</p>
+      ) : sites.length === 0 ? (
+        <p className="empty-state">
+          No locations or vehicles yet. Add them under Master Data → Location Master Data and Vehicle Master Data.
+        </p>
+      ) : (
+        <div className="site-grid">
+          {sites.map((site) => (
+            <button
+              key={site.id}
+              className={`site-card${sourceId === site.id ? ' active' : ''}${site.type === 'vehicle' ? ' site-truck' : ''}`}
+              onClick={() => selectSource(site.id)}
+            >
+              <span className="site-name">{site.name}</span>
+              <span className="site-count">{countAt(site.id)} items</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {sourceId && (
         <div className="relocate-panel">
@@ -137,7 +147,7 @@ export default function Relocate() {
                 <option value="" disabled>
                   Select destination
                 </option>
-                {SITES.filter((site) => site.id !== sourceId).map((site) => (
+                {sites.filter((site) => site.id !== sourceId).map((site) => (
                   <option key={site.id} value={site.id}>
                     {site.name}
                   </option>

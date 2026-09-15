@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useAppData } from '../data/AppDataContext.jsx'
 import { useCollection } from '../data/useCollection.js'
-import { WAREHOUSES } from '../data/sites.js'
+import { useWarehouses } from '../data/useSites.js'
 import { computeProductFleetTotals, computeVehicleFleetTotals } from '../data/depreciation.js'
 import { currency } from '../components/FleetDepreciationSummary.jsx'
 
@@ -49,6 +49,7 @@ export default function Reports() {
 function ReportsSummary() {
   const { products, inventoryItems, orders, activityLog } = useAppData()
   const { items: vehicles } = useCollection('ims_vehicles')
+  const { warehouses } = useWarehouses()
 
   const productTotals = computeProductFleetTotals(products, inventoryItems)
   const vehicleTotals = computeVehicleFleetTotals(vehicles)
@@ -84,7 +85,7 @@ function ReportsSummary() {
     avgYearlySpend = allTimeSpend / yearsElapsed
   }
 
-  const warehouseTraffic = WAREHOUSES.map((site) => ({
+  const warehouseTraffic = warehouses.map((site) => ({
     site,
     count: activityLog.filter((entry) => entry.siteIds?.includes(site.id)).length,
   })).sort((a, b) => b.count - a.count)

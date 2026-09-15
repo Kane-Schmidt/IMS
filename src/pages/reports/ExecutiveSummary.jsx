@@ -5,13 +5,14 @@ import {
 } from 'recharts'
 import { useAppData } from '../../data/AppDataContext.jsx'
 import { useCollection } from '../../data/useCollection.js'
-import { TRUCKS } from '../../data/sites.js'
+import { useSites } from '../../data/useSites.js'
 import { computeProductFleetTotals, computeVehicleFleetTotals, projectAssetsDepreciation } from '../../data/depreciation.js'
 import { currency, compactCurrency, CHART_COLORS, chartTickStyle, chartAxisLine, chartTooltipStyle, chartLabelStyle, chartItemStyle, chartLegendStyle } from '../../data/reportFormat.js'
 
 export default function ExecutiveSummary() {
   const { products, inventoryItems, companyAssumptions, setCompanyAssumptions } = useAppData()
   const { items: vehicles } = useCollection('ims_vehicles')
+  const { vehicleSites } = useSites()
 
   const productTotals = computeProductFleetTotals(products, inventoryItems)
   const vehicleTotals = computeVehicleFleetTotals(vehicles)
@@ -64,7 +65,9 @@ export default function ExecutiveSummary() {
     return months
   }, [inventoryItems])
 
-  const onTrucksCount = inventoryItems.filter((item) => TRUCKS.some((truck) => truck.id === item.locationId)).length
+  const onTrucksCount = inventoryItems.filter((item) =>
+    vehicleSites.some((vehicle) => vehicle.id === item.locationId),
+  ).length
   const compositionData = [
     { name: 'In Warehouses', value: inventoryItems.length - onTrucksCount, fill: CHART_COLORS.primary },
     { name: 'On Trucks', value: onTrucksCount, fill: CHART_COLORS.accent },

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
-import { WAREHOUSES, siteName } from '../data/sites.js'
+import { useWarehouses } from '../data/useSites.js'
 import { SUPERVISORS } from '../data/supervisors.js'
 import Modal from '../components/Modal.jsx'
 
@@ -21,6 +21,7 @@ const TABS = ['New Order', 'Drafts', 'Pending Approval']
 
 export default function PlaceOrder() {
   const { products, orders, addOrder, submitDraft, reviewOrder } = useAppData()
+  const { warehouses, siteName } = useWarehouses()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState(() => (TABS.includes(location.state?.tab) ? location.state.tab : 'New Order'))
   const [form, setForm] = useState(emptyForm)
@@ -136,7 +137,7 @@ export default function PlaceOrder() {
                 <option value="" disabled>
                   Select warehouse
                 </option>
-                {WAREHOUSES.map((wh) => (
+                {warehouses.map((wh) => (
                   <option key={wh.id} value={wh.id}>
                     {wh.name}
                   </option>
@@ -304,6 +305,7 @@ export default function PlaceOrder() {
         <OrderReviewModal
           order={reviewingOrder}
           productLabel={productLabel}
+          siteName={siteName}
           onApprove={() => {
             reviewOrder(reviewingOrder.id, 'approve')
             setReviewingOrder(null)
@@ -319,7 +321,7 @@ export default function PlaceOrder() {
   )
 }
 
-function OrderReviewModal({ order, productLabel, onApprove, onReject, onClose }) {
+function OrderReviewModal({ order, productLabel, siteName, onApprove, onReject, onClose }) {
   const [comment, setComment] = useState('')
 
   return (

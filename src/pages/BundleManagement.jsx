@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
-import { WAREHOUSES, siteName } from '../data/sites.js'
+import { useWarehouses } from '../data/useSites.js'
 import PrintableLabels from '../components/PrintableLabels.jsx'
 
 const TABS = ['Create', 'Active Bundles']
 
 export default function BundleManagement() {
   const { inventoryItems, products, bundles, createBundle, breakBundle } = useAppData()
+  const { warehouses, siteName } = useWarehouses()
   const [activeTab, setActiveTab] = useState('Create')
   const [warehouseId, setWarehouseId] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
@@ -36,7 +37,10 @@ export default function BundleManagement() {
 
   function handleCreate() {
     if (selectedIds.length < 2 || !bundleName.trim()) return
-    const id = createBundle({ name: bundleName.trim(), warehouseLocationId: warehouseId, itemIds: selectedIds })
+    const id = createBundle(
+      { name: bundleName.trim(), warehouseLocationId: warehouseId, itemIds: selectedIds },
+      siteName(warehouseId),
+    )
     setNewLabel({
       id: crypto.randomUUID(),
       heading: bundleName.trim(),
@@ -82,7 +86,7 @@ export default function BundleManagement() {
               <option value="" disabled>
                 Select warehouse
               </option>
-              {WAREHOUSES.map((wh) => (
+              {warehouses.map((wh) => (
                 <option key={wh.id} value={wh.id}>
                   {wh.name}
                 </option>
@@ -144,6 +148,7 @@ export default function BundleManagement() {
       {activeTab === 'Active Bundles' && (
         <ActiveBundlesList
           bundles={bundles.filter((b) => b.status === 'active')}
+          siteName={siteName}
           onReprint={(bundle) =>
             setReprintLabel({
               id: crypto.randomUUID(),
@@ -159,7 +164,7 @@ export default function BundleManagement() {
   )
 }
 
-function ActiveBundlesList({ bundles, onReprint, onBreak }) {
+function ActiveBundlesList({ bundles, siteName, onReprint, onBreak }) {
   if (bundles.length === 0) {
     return <p className="empty-state">No active bundles.</p>
   }

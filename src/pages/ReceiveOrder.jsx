@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppData } from '../data/AppDataContext.jsx'
-import { siteName } from '../data/sites.js'
+import { useWarehouses } from '../data/useSites.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 import PrintableLabels from '../components/PrintableLabels.jsx'
 
 function generateSerial() {
@@ -10,6 +11,14 @@ function generateSerial() {
 
 export default function ReceiveOrder() {
   const { orders, products, receiveOrder } = useAppData()
+  const { siteName } = useWarehouses()
+  const { profile } = useAuth()
+
+  // Only receivers can receive, and only into warehouses they're assigned to.
+  const isReceiver = profile?.is_receiver === true
+  const assignedWarehouses = profile?.assigned_warehouses ?? []
+  const canReceiveInto = (locationId) => isReceiver && assignedWarehouses.includes(locationId)
+
   const approvedOrders = orders.filter((order) => order.status === 'approved')
 
   const [selectedOrderId, setSelectedOrderId] = useState(null)
@@ -55,12 +64,15 @@ export default function ReceiveOrder() {
   }
 
   function handleConfirm() {
+    if (!canReceiveInto(selectedOrder.destinationLocationId)) return
+
     const scannedItems = selectedOrder.lineItems.flatMap((item) =>
       scansFor(item.id).map((scan) => ({ productId: item.productId, serial: scan.serial })),
     )
     receiveOrder({
       orderId: selectedOrder.id,
       destinationLocationId: selectedOrder.destinationLocationId,
+      destinationName: siteName(selectedOrder.destinationLocationId),
       scannedItems,
       palletBoxCount,
     })
@@ -90,7 +102,12 @@ export default function ReceiveOrder() {
           ← Back to Inventory
         </Link>
         <h1>Receive an Order</h1>
-        {approvedOrders.length === 0 ? (
+        {!isReceiver ? (
+          <p className="warning-banner">
+            Your account is not set up as a receiver, so you can't receive equipment. An admin can enable this under
+            Admin → User Management.
+          </p>
+        ) : approvedOrders.length === 0 ? (
           <p className="empty-state">No approved orders are waiting to be received.</p>
         ) : (
           <table className="data-table">
@@ -111,9 +128,13 @@ export default function ReceiveOrder() {
                   <td>{siteName(order.destinationLocationId)}</td>
                   <td>{order.expectedDate}</td>
                   <td>
-                    <button className="btn-primary" onClick={() => startReceiving(order)}>
-                      Receive
-                    </button>
+                    {canReceiveInto(order.destinationLocationId) ? (
+                      <button className="btn-primary" onClick={() => startReceiving(order)}>
+                        Receive
+                      </button>
+                    ) : (
+                      <span className="empty-state">Not your warehouse</span>
+                    )}
                   </td>
                 </tr>
               ))}

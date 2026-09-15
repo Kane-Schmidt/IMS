@@ -127,10 +127,13 @@ create table if not exists employees (
   created_at timestamptz not null default now()
 );
 
--- Which warehouses an employee is assigned to (ids from the locations
--- table below), and whether they are allowed to receive equipment.
-alter table employees add column if not exists assigned_warehouses jsonb not null default '[]';
-alter table employees add column if not exists is_receiver boolean not null default false;
+-- Warehouse assignment and receiving rights live on the login account
+-- (profiles), not on the employee record, so the app can check them for
+-- whoever is actually signed in.
+alter table employees drop column if exists assigned_warehouses;
+alter table employees drop column if exists is_receiver;
+alter table profiles add column if not exists assigned_warehouses jsonb not null default '[]';
+alter table profiles add column if not exists is_receiver boolean not null default false;
 
 create table if not exists locations (
   id uuid primary key default gen_random_uuid(),
