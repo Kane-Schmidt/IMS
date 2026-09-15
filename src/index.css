@@ -333,6 +333,110 @@ body {
   border-bottom: none;
 }
 
+.report-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.report-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.report-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.report-row:last-child {
+  border-bottom: none;
+}
+
+.report-row.total {
+  border-top: 2px solid var(--color-steel-blue);
+  border-bottom: none;
+  padding-top: 0.6rem;
+  margin-top: 0.3rem;
+}
+
+.report-row-label {
+  color: var(--color-text-muted);
+}
+
+.report-row-value {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.report-row-value.accent {
+  color: var(--color-signal-yellow);
+}
+
+.report-row-value.danger {
+  color: var(--color-alert-red);
+}
+
+.report-row-value.positive {
+  color: var(--color-steel-blue);
+}
+
+.assumption-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.assumption-field span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.assumption-field input {
+  background-color: var(--color-carbon-black);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+}
+
+.ebitda-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.ebitda-slider-row input[type='range'] {
+  flex: 1;
+}
+
+.ebitda-slider-value {
+  font-weight: 600;
+  color: var(--color-signal-yellow);
+  white-space: nowrap;
+}
+
+.chart-card-note {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin: 0 0 0.75rem;
+}
+
+.ebitda-slider-row .chart-card-note {
+  margin: 0;
+  white-space: nowrap;
+}
+
 .schedule-details {
   margin: 0 0 2rem;
 }

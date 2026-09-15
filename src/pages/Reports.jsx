@@ -6,12 +6,14 @@ import { computeProductFleetTotals, computeVehicleFleetTotals } from '../data/de
 import { currency } from '../components/FleetDepreciationSummary.jsx'
 
 // recharts pulls in a lot of weight — only load it once someone actually
-// opens this tab, instead of bloating every page's initial bundle.
-const ExecutiveDashboard = lazy(() => import('./ExecutiveDashboard.jsx'))
+// opens one of these tabs, instead of bloating every page's initial bundle.
+const ExecutiveSummary = lazy(() => import('./reports/ExecutiveSummary.jsx'))
+const InventoryByLocation = lazy(() => import('./reports/InventoryByLocation.jsx'))
+const FinancialValuation = lazy(() => import('./reports/FinancialValuation.jsx'))
 
 const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.4375
 const RECENT_ACTIVITY_LIMIT = 100
-const TABS = ['Summary', 'Executive Dashboard']
+const TABS = ['Summary', 'Executive Summary', 'Inventory by Location', 'Financial Valuation']
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('Summary')
@@ -33,9 +35,11 @@ export default function Reports() {
       </div>
 
       {activeTab === 'Summary' && <ReportsSummary />}
-      {activeTab === 'Executive Dashboard' && (
-        <Suspense fallback={<p className="empty-state">Loading dashboard…</p>}>
-          <ExecutiveDashboard />
+      {activeTab !== 'Summary' && (
+        <Suspense fallback={<p className="empty-state">Loading report…</p>}>
+          {activeTab === 'Executive Summary' && <ExecutiveSummary />}
+          {activeTab === 'Inventory by Location' && <InventoryByLocation />}
+          {activeTab === 'Financial Valuation' && <FinancialValuation />}
         </Suspense>
       )}
     </div>
