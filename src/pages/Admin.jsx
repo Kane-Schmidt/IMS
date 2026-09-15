@@ -21,6 +21,7 @@ export default function Admin() {
   const { organization, profile: myProfile, refreshProfile } = useAuth()
   const { warehouses } = useWarehouses()
   const { items: vehicles } = useCollection('ims_vehicles')
+  const { items: locations } = useCollection('ims_locations')
   const [members, setMembers] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [showSeatRequest, setShowSeatRequest] = useState(false)
@@ -157,50 +158,58 @@ export default function Admin() {
       {!loaded ? (
         <p className="empty-state">Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Receiver</th>
-              <th>Warehouses</th>
-              <th>Vehicle</th>
-              {canManageMembers && <th></th>}
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((member) => (
-              <tr key={member.id}>
-                <td>{member.name || '—'}</td>
-                <td>{member.email}</td>
-                <td>{member.role}</td>
-                <td>
-                  <span className={`status-pill ${member.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                    {member.status === 'active' ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>{member.is_receiver ? 'Yes' : 'No'}</td>
-                <td>{(member.assigned_warehouses ?? []).length}</td>
-                <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
-                {canManageMembers && (
-                  <td className="row-actions">
-                    <button className="btn-secondary" onClick={() => setEditingMember(member)}>
-                      Edit
-                    </button>
-                    <button
-                      className="btn-secondary"
-                      onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
-                    >
-                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
-                )}
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Date of Hire</th>
+                <th>Home Office</th>
+                <th>Receiver</th>
+                <th>Warehouses</th>
+                <th>Vehicle</th>
+                {canManageMembers && <th></th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {members.map((member) => (
+                <tr key={member.id}>
+                  <td>{member.first_name || '—'}</td>
+                  <td>{member.last_name || '—'}</td>
+                  <td>{member.email}</td>
+                  <td>{member.role}</td>
+                  <td>
+                    <span className={`status-pill ${member.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                      {member.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>{member.date_of_hire || '—'}</td>
+                  <td>{locationLabel(locations, member.home_office_location_id)}</td>
+                  <td>{member.is_receiver ? 'Yes' : 'No'}</td>
+                  <td>{(member.assigned_warehouses ?? []).length}</td>
+                  <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
+                  {canManageMembers && (
+                    <td className="row-actions">
+                      <button className="btn-secondary" onClick={() => setEditingMember(member)}>
+                        Edit
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => updateMember(member.id, { status: member.status === 'active' ? 'inactive' : 'active' })}
+                      >
+                        {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showSeatRequest && (
@@ -212,6 +221,7 @@ export default function Admin() {
           member={editingMember}
           warehouses={warehouses}
           vehicles={vehicles}
+          locations={locations}
           members={members}
           onSave={async (updates) => {
             const saved = await updateMember(editingMember.id, updates)
@@ -225,10 +235,21 @@ export default function Admin() {
 }
 
 function memberLabel(member) {
-  return member.name || member.email
+  const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ')
+  return fullName || member.name || member.email
 }
 
-function MemberModal({ member, warehouses, vehicles, members, onSave, onClose }) {
+function locationLabel(locations, id) {
+  if (!id) return '—'
+  const location = locations.find((entry) => entry.id === id)
+  return location?.locationName ?? '—'
+}
+
+function MemberModal({ member, warehouses, vehicles, locations, members, onSave, onClose }) {
+  const [firstName, setFirstName] = useState(member.first_name ?? '')
+  const [lastName, setLastName] = useState(member.last_name ?? '')
+  const [dateOfHire, setDateOfHire] = useState(member.date_of_hire ?? '')
+  const [homeOfficeId, setHomeOfficeId] = useState(member.home_office_location_id ?? '')
   const [role, setRole] = useState(member.role)
   const [isReceiver, setIsReceiver] = useState(member.is_receiver ?? false)
   const [assigned, setAssigned] = useState(member.assigned_warehouses ?? [])
@@ -248,6 +269,10 @@ function MemberModal({ member, warehouses, vehicles, members, onSave, onClose })
     event.preventDefault()
     if (vehicleHolder) return
     onSave({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      date_of_hire: dateOfHire || null,
+      home_office_location_id: homeOfficeId || null,
       role,
       is_receiver: isReceiver,
       assigned_warehouses: assigned,
@@ -258,6 +283,29 @@ function MemberModal({ member, warehouses, vehicles, members, onSave, onClose })
   return (
     <Modal title={member.email} onClose={onClose}>
       <form className="record-form" onSubmit={handleSubmit}>
+        <label className="form-field">
+          <span>First Name</span>
+          <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+        </label>
+        <label className="form-field">
+          <span>Last Name</span>
+          <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} />
+        </label>
+        <label className="form-field">
+          <span>Date of Hire</span>
+          <input type="date" value={dateOfHire} onChange={(event) => setDateOfHire(event.target.value)} />
+        </label>
+        <label className="form-field">
+          <span>Home Office</span>
+          <select value={homeOfficeId} onChange={(event) => setHomeOfficeId(event.target.value)}>
+            <option value="">None</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.locationName}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="form-field">
           <span>Role</span>
           <select value={role} onChange={(event) => setRole(event.target.value)}>

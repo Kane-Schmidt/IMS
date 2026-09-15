@@ -7,6 +7,7 @@ paste into the Supabase SQL Editor (Project → SQL Editor → New query):
 2. `002_master_data.sql` — products, locations, vehicles
 3. `003_operational_data.sql` — orders, inventory, bundles, tickets, activity log
 4. `004_row_level_security.sql` — access rules, scoped per organization
+5. `005_profile_details.sql` — first/last name, date of hire, home office on profiles (needs 002 for the locations reference)
 
 **Why one at a time, not all pasted together:** a pasted SQL block runs as a
 single transaction. If any one statement in it fails, the *entire* block
@@ -23,10 +24,10 @@ where table_schema = 'public' and table_name = '<table_name>'
 order by column_name;
 ```
 
-This is already applied to the live project as of 2026-09. These files exist
-for setting up a new environment from scratch (a new Supabase project, a
-teammate's local setup) — you don't need to re-run them against the existing
-database unless a future change adds a new migration file.
+001-004 are already applied to the live project as of 2026-09. These files
+exist for setting up a new environment from scratch (a new Supabase project,
+a teammate's local setup) as much as for applying new changes — check with
+the query above before assuming a given migration still needs to run.
 
 ## Note on the `employees` table
 
