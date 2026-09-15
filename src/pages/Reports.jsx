@@ -49,7 +49,7 @@ export default function Reports() {
 function ReportsSummary() {
   const { products, inventoryItems, orders, activityLog } = useAppData()
   const { items: vehicles } = useCollection('ims_vehicles')
-  const { warehouses } = useWarehouses()
+  const { warehouses, loaded: warehousesLoaded } = useWarehouses()
 
   const productTotals = computeProductFleetTotals(products, inventoryItems)
   const vehicleTotals = computeVehicleFleetTotals(vehicles)
@@ -89,8 +89,8 @@ function ReportsSummary() {
     site,
     count: activityLog.filter((entry) => entry.siteIds?.includes(site.id)).length,
   })).sort((a, b) => b.count - a.count)
-  const highestTraffic = warehouseTraffic[0]
-  const lowestTraffic = warehouseTraffic[warehouseTraffic.length - 1]
+  const highestTraffic = warehouseTraffic[0] ?? null
+  const lowestTraffic = warehouseTraffic.length > 0 ? warehouseTraffic[warehouseTraffic.length - 1] : null
 
   const recentActivity = [...activityLog].reverse().slice(0, RECENT_ACTIVITY_LIMIT)
 
@@ -155,33 +155,41 @@ function ReportsSummary() {
             <span className="kpi-label">Total Vehicles</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-value">{highestTraffic.site.name}</span>
-            <span className="kpi-label">Highest Traffic Warehouse ({highestTraffic.count})</span>
+            <span className="kpi-value">{highestTraffic ? highestTraffic.site.name : '—'}</span>
+            <span className="kpi-label">Highest Traffic Warehouse ({highestTraffic ? highestTraffic.count : 0})</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-value">{lowestTraffic.site.name}</span>
-            <span className="kpi-label">Lowest Traffic Warehouse ({lowestTraffic.count})</span>
+            <span className="kpi-value">{lowestTraffic ? lowestTraffic.site.name : '—'}</span>
+            <span className="kpi-label">Lowest Traffic Warehouse ({lowestTraffic ? lowestTraffic.count : 0})</span>
           </div>
         </div>
         <p className="page-subtitle">Traffic = receiving and relocation events recorded against each warehouse.</p>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Warehouse</th>
-                <th>Traffic Events</th>
-              </tr>
-            </thead>
-            <tbody>
-              {warehouseTraffic.map(({ site, count }) => (
-                <tr key={site.id}>
-                  <td>{site.name}</td>
-                  <td>{count}</td>
+        {!warehousesLoaded ? (
+          <p className="empty-state">Loading warehouses…</p>
+        ) : warehouseTraffic.length === 0 ? (
+          <p className="empty-state">
+            No warehouses yet. Add one under Master Data → Location Master Data to see traffic here.
+          </p>
+        ) : (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Warehouse</th>
+                  <th>Traffic Events</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {warehouseTraffic.map(({ site, count }) => (
+                  <tr key={site.id}>
+                    <td>{site.name}</td>
+                    <td>{count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="finance-section">
