@@ -164,6 +164,10 @@ create table if not exists vehicles (
   created_at timestamptz not null default now()
 );
 
+-- Optional vehicle assigned to a login account. Clearing the vehicle from
+-- Vehicle Master Data unassigns it rather than blocking the delete.
+alter table profiles add column if not exists assigned_vehicle_id uuid references vehicles (id) on delete set null;
+
 -- ─────────────────────────────────────────────────────────────────────────
 -- Operational data
 -- ─────────────────────────────────────────────────────────────────────────

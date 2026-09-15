@@ -178,6 +178,12 @@ body {
   color: var(--color-alert-red);
 }
 
+.field-error {
+  color: var(--color-alert-red);
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}
+
 .auth-signout {
   width: 100%;
   margin-top: 1rem;

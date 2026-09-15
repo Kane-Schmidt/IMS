@@ -2,21 +2,31 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useWarehouses } from '../data/useSites.js'
+import { useCollection } from '../data/useCollection.js'
 import { APP_VERSION, INSTALLED_AT, LAST_UPDATED_AT, SUPPORT_EMAIL } from '../data/appInfo.js'
 import Modal from '../components/Modal.jsx'
 
 const ROLES = ['admin', 'standard', 'read-only']
+
+function vehicleLabel(vehicles, id) {
+  if (!id) return '—'
+  const vehicle = vehicles.find((entry) => entry.id === id)
+  if (!vehicle) return '—'
+  return [vehicle.vehicleNumber, vehicle.model].filter(Boolean).join(' — ')
+}
 const URGENCY_OPTIONS = ['Immediately', 'Within 1 week', 'Within 1 month', 'Flexible']
 const emptySeatRequest = { additionalSeats: '', reason: '', urgency: 'Within 1 week' }
 
 export default function Admin() {
   const { organization, profile: myProfile, refreshProfile } = useAuth()
   const { warehouses } = useWarehouses()
+  const { items: vehicles } = useCollection('ims_vehicles')
   const [members, setMembers] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [showSeatRequest, setShowSeatRequest] = useState(false)
   const [editingMember, setEditingMember] = useState(null)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -48,15 +58,26 @@ export default function Admin() {
   const seatsAvailable = Math.max(totalSeats - seatsUsed, 0)
   const canManageMembers = myProfile?.role === 'admin'
 
+  // Waits for the write and applies what the server actually stored, rather
+  // than optimistically showing a change that may never have landed.
   async function updateMember(id, updates) {
-    setMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updates } : member)))
-    const { error } = await supabase.from('profiles').update(updates).eq('id', id)
-    if (error) {
-      console.error('Failed to update member:', error.message)
-      return
+    setError('')
+    const { data, error: saveError } = await supabase.from('profiles').update(updates).eq('id', id).select()
+
+    if (saveError) {
+      setError(`Could not save: ${saveError.message}`)
+      return false
     }
+
+    if (!data || data.length === 0) {
+      setError('Could not save — no row was updated. You may not have permission to edit this member.')
+      return false
+    }
+
+    setMembers((prev) => prev.map((member) => (member.id === id ? data[0] : member)))
     // Keep the signed-in user's own permissions current if they edited themselves.
     if (id === myProfile?.id) await refreshProfile()
+    return true
   }
 
   async function copyInviteCode() {
@@ -113,6 +134,7 @@ export default function Admin() {
       </div>
 
       {message && <p className="form-message">{message}</p>}
+      {error && <p className="field-error">{error}</p>}
 
       <div className="form-actions form-field-narrow">
         <button className="btn-secondary" onClick={() => setShowSeatRequest(true)}>
@@ -144,6 +166,7 @@ export default function Admin() {
               <th>Status</th>
               <th>Receiver</th>
               <th>Warehouses</th>
+              <th>Vehicle</th>
               {canManageMembers && <th></th>}
             </tr>
           </thead>
@@ -160,6 +183,7 @@ export default function Admin() {
                 </td>
                 <td>{member.is_receiver ? 'Yes' : 'No'}</td>
                 <td>{(member.assigned_warehouses ?? []).length}</td>
+                <td>{vehicleLabel(vehicles, member.assigned_vehicle_id)}</td>
                 {canManageMembers && (
                   <td className="row-actions">
                     <button className="btn-secondary" onClick={() => setEditingMember(member)}>
@@ -187,9 +211,11 @@ export default function Admin() {
         <MemberModal
           member={editingMember}
           warehouses={warehouses}
-          onSave={(updates) => {
-            updateMember(editingMember.id, updates)
-            setEditingMember(null)
+          vehicles={vehicles}
+          members={members}
+          onSave={async (updates) => {
+            const saved = await updateMember(editingMember.id, updates)
+            if (saved) setEditingMember(null)
           }}
           onClose={() => setEditingMember(null)}
         />
@@ -198,10 +224,21 @@ export default function Admin() {
   )
 }
 
-function MemberModal({ member, warehouses, onSave, onClose }) {
+function memberLabel(member) {
+  return member.name || member.email
+}
+
+function MemberModal({ member, warehouses, vehicles, members, onSave, onClose }) {
   const [role, setRole] = useState(member.role)
   const [isReceiver, setIsReceiver] = useState(member.is_receiver ?? false)
   const [assigned, setAssigned] = useState(member.assigned_warehouses ?? [])
+  const [vehicleId, setVehicleId] = useState(member.assigned_vehicle_id ?? '')
+
+  // A vehicle belongs to one person at a time, so flag it if someone else
+  // already has the one being picked.
+  const vehicleHolder = vehicleId
+    ? members.find((other) => other.id !== member.id && other.assigned_vehicle_id === vehicleId)
+    : null
 
   function toggleWarehouse(id) {
     setAssigned((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]))
@@ -209,7 +246,13 @@ function MemberModal({ member, warehouses, onSave, onClose }) {
 
   function handleSubmit(event) {
     event.preventDefault()
-    onSave({ role, is_receiver: isReceiver, assigned_warehouses: assigned })
+    if (vehicleHolder) return
+    onSave({
+      role,
+      is_receiver: isReceiver,
+      assigned_warehouses: assigned,
+      assigned_vehicle_id: vehicleId || null,
+    })
   }
 
   return (
@@ -229,6 +272,21 @@ function MemberModal({ member, warehouses, onSave, onClose }) {
           <span>Receiver</span>
           <input type="checkbox" checked={isReceiver} onChange={(event) => setIsReceiver(event.target.checked)} />
         </label>
+
+        <div className="form-field form-field-wide">
+          <span>Assigned Vehicle (optional)</span>
+          <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
+            <option value="">None</option>
+            {vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {[vehicle.vehicleNumber, vehicle.model].filter(Boolean).join(' — ')}
+              </option>
+            ))}
+          </select>
+          {vehicleHolder && (
+            <p className="field-error">This vehicle is already assigned to user {memberLabel(vehicleHolder)}.</p>
+          )}
+        </div>
 
         <div className="form-field form-field-wide">
           <span>Assigned Warehouses</span>
@@ -259,7 +317,7 @@ function MemberModal({ member, warehouses, onSave, onClose }) {
         )}
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" disabled={Boolean(vehicleHolder)}>
             Save
           </button>
           <button type="button" className="btn-secondary" onClick={onClose}>
