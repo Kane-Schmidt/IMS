@@ -59,6 +59,8 @@ export const employeeFields = [
   { key: 'homeOfficeLocation', label: 'Home Office Location', type: 'text' },
   { key: 'jobTitle', label: 'Job Title', type: 'text' },
   { key: 'isAdmin', label: 'Admin', type: 'checkbox' },
+  { key: 'assignedWarehouses', label: 'Assigned Warehouses', type: 'warehouseChecklist' },
+  { key: 'isReceiver', label: 'Receiver', type: 'checkbox' },
 ]
 
 export const locationFields = [

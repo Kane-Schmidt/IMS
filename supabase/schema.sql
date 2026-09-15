@@ -127,6 +127,11 @@ create table if not exists employees (
   created_at timestamptz not null default now()
 );
 
+-- Which warehouses an employee is assigned to (ids from the locations
+-- table below), and whether they are allowed to receive equipment.
+alter table employees add column if not exists assigned_warehouses jsonb not null default '[]';
+alter table employees add column if not exists is_receiver boolean not null default false;
+
 create table if not exists locations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations (id) on delete cascade,

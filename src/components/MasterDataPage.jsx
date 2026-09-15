@@ -4,6 +4,7 @@ import { useCollection } from '../data/useCollection.js'
 function emptyValueFor(field) {
   if (field.type === 'checkbox') return false
   if (field.type === 'storageLocations') return []
+  if (field.type === 'warehouseChecklist') return []
   return ''
 }
 
@@ -119,6 +120,39 @@ function StorageLocationsEditor({ value, onChange }) {
   )
 }
 
+// Warehouses come from Location Master Data (any location typed as a
+// warehouse), so the list stays in sync with the company's real locations
+// instead of being a separate hardcoded list.
+function WarehouseChecklist({ value, onChange }) {
+  const { items: locations, loaded } = useCollection('ims_locations')
+  const warehouses = locations.filter((location) => location.locationType === 'Warehouse')
+
+  function toggle(id) {
+    onChange(value.includes(id) ? value.filter((entry) => entry !== id) : [...value, id])
+  }
+
+  if (!loaded) return <p className="empty-state">Loading warehouses…</p>
+
+  if (warehouses.length === 0) {
+    return (
+      <p className="empty-state">
+        No warehouses yet. Add a location with type Warehouse under Location Master Data first.
+      </p>
+    )
+  }
+
+  return (
+    <div className="warehouse-checklist">
+      {warehouses.map((warehouse) => (
+        <label key={warehouse.id} className="warehouse-checklist-option">
+          <input type="checkbox" checked={value.includes(warehouse.id)} onChange={() => toggle(warehouse.id)} />
+          <span>{warehouse.locationName}</span>
+        </label>
+      ))}
+    </div>
+  )
+}
+
 function FieldInput({ field, value, onChange }) {
   if (field.type === 'checkbox') {
     return <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
@@ -143,6 +177,10 @@ function FieldInput({ field, value, onChange }) {
     return <StorageLocationsEditor value={value} onChange={onChange} />
   }
 
+  if (field.type === 'warehouseChecklist') {
+    return <WarehouseChecklist value={value} onChange={onChange} />
+  }
+
   return (
     <input
       type={field.type === 'number' || field.type === 'date' ? field.type : 'text'}
@@ -157,6 +195,9 @@ function displayValue(field, value) {
   if (field.type === 'checkbox') return value ? 'Yes' : 'No'
   if (field.type === 'storageLocations') {
     return `${value.length} location${value.length === 1 ? '' : 's'}`
+  }
+  if (field.type === 'warehouseChecklist') {
+    return `${value.length} warehouse${value.length === 1 ? '' : 's'}`
   }
   if (field.type === 'number' && field.currency) {
     return value === '' ? '' : `$${Number(value).toLocaleString()}`
@@ -221,15 +262,19 @@ export default function MasterDataPage({ title, storageKey, fields }) {
 
       {showForm && (
         <form className="record-form" onSubmit={handleSubmit}>
-          {fields.map((field) => (
-            <label
-              key={field.key}
-              className={`form-field${field.type === 'storageLocations' ? ' form-field-wide' : ''}`}
-            >
-              <span>{field.label}</span>
-              <FieldInput field={field} value={draft[field.key]} onChange={(value) => updateField(field.key, value)} />
-            </label>
-          ))}
+          {fields.map((field) => {
+            // Composite fields contain their own labels/inputs, so they get a
+            // div wrapper — nesting a <label> inside a <label> is invalid HTML
+            // and makes clicks toggle the wrong control.
+            const isComposite = field.type === 'storageLocations' || field.type === 'warehouseChecklist'
+            const Wrapper = isComposite ? 'div' : 'label'
+            return (
+              <Wrapper key={field.key} className={`form-field${isComposite ? ' form-field-wide' : ''}`}>
+                <span>{field.label}</span>
+                <FieldInput field={field} value={draft[field.key]} onChange={(value) => updateField(field.key, value)} />
+              </Wrapper>
+            )
+          })}
           <div className="form-actions">
             <button type="submit" className="btn-primary">
               {editingId ? 'Save Changes' : 'Save'}

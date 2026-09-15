@@ -321,6 +321,36 @@ body {
   gap: 0.75rem;
 }
 
+.warehouse-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem 1rem;
+  background-color: var(--color-carbon-black);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.warehouse-checklist-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.warehouse-checklist-option span {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.warehouse-checklist-option input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .sub-table {
   width: 100%;
   border-collapse: collapse;
